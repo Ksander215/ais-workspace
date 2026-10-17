@@ -1,3 +1,61 @@
+# AIS — Autonomous Intelligent System
+
+> **AIS MVP is the active validation target.** This repository also contains the separate SIP Security Intelligence Platform. They are different product/runtime contours.
+
+## AIS MVP — First User Quick Start
+
+AIS is the experimental runtime for understanding an unfamiliar codebase through architecture-aware questions and evidence-backed answers.
+
+### 1. Run AIS
+
+Prerequisites: **Node.js 18+**, npm, and Git.
+
+```bash
+git clone https://github.com/Ksander215/sec-scanner-workspace.git
+cd sec-scanner-workspace
+npm install
+npm run build
+
+# Start the AIS MVP UI
+npm run mvp-ui
+# → http://localhost:3456
+```
+
+The AIS interface should open with **“AIS — Understand Any Codebase”**.
+
+### 2. Enable real inference
+
+The UI can start without a model key, but question answering requires real inference:
+
+```bash
+AIS_EXECUTION_REAL=true AIS_REAL_LLM=true OPENAI_API_KEY=YOUR_KEY npm run mvp-ui
+```
+
+If your OpenAI-compatible provider uses another endpoint, set `OPENAI_BASE_URL` as well:
+
+```bash
+AIS_EXECUTION_REAL=true AIS_REAL_LLM=true OPENAI_API_KEY=YOUR_KEY OPENAI_BASE_URL=YOUR_ENDPOINT npm run mvp-ui
+```
+
+**Do not commit API keys to the repository.**
+
+### 3. First validation path
+
+1. Open AIS at `http://localhost:3456`.
+2. Choose **Demo** and ask: `What is the overall architecture of this project?`
+3. Inspect the answer, claims, and source evidence.
+4. Ask a second architecture question, then try a question of your own.
+5. If validating continuity, stop and restart AIS, reopen the same project, and check the **Welcome Back** state.
+6. For a real codebase, choose **GitHub Repository** and provide a public repository.
+
+### AIS vs SIP
+
+**Use the root commands above for AIS.**
+
+The `landing/`, `backend/`, and `plugins/` directories contain the separate **SIP — Security Intelligence Platform** application. The SIP demo is not the AIS MVP and should not be used as the AIS validation entry point.
+
+---
+
 <div align="center">
 
 # SIP
@@ -115,7 +173,7 @@ Each plugin runs in isolation with a defined manifest:
 
 ---
 
-## Quick Start
+## SIP Quick Start
 
 ### Prerequisites
 
@@ -123,7 +181,7 @@ Each plugin runs in isolation with a defined manifest:
 - npm 9+
 - Git
 
-### Clone and Run
+### Clone and Run (SIP)
 
 ```bash
 git clone https://github.com/Ksander215/sec-scanner-workspace.git
