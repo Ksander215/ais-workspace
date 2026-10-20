@@ -1,251 +1,101 @@
-# Руководство по участию в разработке SIP
+# Contributing to AIS
 
-Благодарим за интерес к проекту **SIP — Security Intelligence Platform**! Мы приветствуем вклад от сообщества и стремимся сделать процесс сотрудничества максимально прозрачным и комфортным. Данный документ описывает правила и процедуры, которых следует придерживаться при внесении изменений в проект.
+This repository contains two product/runtime contours: **AIS — Autonomous Intelligent System** and the legacy/separate **SIP — Security Intelligence Platform**. The active validation target is AIS.
 
----
+## Before changing code
 
-## Как внести вклад
+1. Read the root README and identify whether the change belongs to AIS or SIP.
+2. Read the relevant current-state/architecture documentation under `docs/`.
+3. Find or create a GitHub Issue for non-trivial work.
+4. Do not expand architecture unless the task has an explicit architectural reason.
+5. Separate facts, hypotheses, assumptions, and validation results in task documentation.
 
-### 1. Форк и клонирование
+## Branching
 
-Создайте форк репозитория на GitHub и клонируйте его локально:
+Use one branch per change:
 
-```bash
-git clone https://github.com/YOUR_USERNAME/sip.git
-cd sip
-git remote add upstream https://github.com/sip-platform/sip.git
+```text
+feature/<task>-<short-description>
+fix/<task>-<short-description>
+docs/<task>-<short-description>
+test/<task>-<short-description>
+chore/<task>-<short-description>
 ```
 
-Регулярно синхронизируйте вашу локальную ветку с upstream-репозиторием, чтобы избежать конфликтов при слиянии:
+Do not develop directly on `main` for substantive changes.
 
-```bash
-git fetch upstream
-git rebase upstream/main
+## Commits
+
+Keep commits atomic: one coherent change per commit. Use Conventional Commit style:
+
+```text
+feat(scope): short description
+fix(scope): short description
+docs(scope): short description
+test(scope): short description
+chore(scope): short description
+refactor(scope): short description
 ```
 
-### 2. Создание ветки
+Reference the Issue when appropriate. Keep the subject concise and explain **why** in the body when the reason is not obvious.
 
-Для каждой новой задачи создавайте отдельную ветку, следуя конвенции именования (см. раздел «Именование веток» ниже):
+## Pull Requests
 
-```bash
-git checkout -b feature/INT-042-knowledge-graph-export
-```
+Every substantive change enters `main` through a Pull Request.
 
-### 3. Внесение изменений
+A PR should state:
+- problem and reason;
+- scope and explicit non-goals;
+- files/components affected;
+- validation performed;
+- known limitations;
+- evidence status (E0–E5 where relevant).
 
-Вносите изменения атомарными коммитами. Каждый коммит должен решать одну конкретную задачу. Не смешивайте рефакторинг, исправление ошибок и добавление нового функционала в одном коммите.
+Never claim a check was run unless it was actually run.
 
-### 4. Отправка Pull Request
+## Required local checks
 
-Когда работа завершена, отправьте Pull Request (PR) в основную ветку `main` репозитория. Заполните шаблон PR, указав:
-
-- **Описание изменений**: что было сделано и почему.
-- **Связанная задача**: ссылка на issue (например, `Closes #42`).
-- **Тип изменения**: feature / fix / docs / refactor / test.
-- **Проверки**: отметьте выполненные проверки из чеклиста.
-
----
-
-## Настройка окружения разработки
-
-### Предварительные требования
-
-- **Node.js** ≥ 20.x (рекомендуется LTS-версия)
-- **npm** ≥ 10.x или **pnpm** ≥ 8.x
-- **Git** ≥ 2.40
-- **Docker** (для запуска интеграционных тестов)
-
-### Установка зависимостей
+For AIS runtime changes, run:
 
 ```bash
-# Установка зависимостей фронтенда
-cd landing
 npm install
-
-# Установка зависимостей бэкенда
-cd ../backend
-npm install
+npm run build
+npm test
 ```
 
-### Запуск в режиме разработки
+For MVP UI changes, additionally run:
 
 ```bash
-# Фронтенд (порт 3000)
-cd landing
-npm run dev
-
-# Бэкенд (порт 3001)
-cd backend
-npm run dev
+npm run test:mvp-ui
 ```
 
-### Переменные окружения
+For user-facing launch changes, perform the Third-PC Launch Gate when a clean external machine is available.
 
-Создайте файл `.env.local` в директории `landing/` на основе `.env.example`. Минимальная конфигурация:
+## Review policy
 
-```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_APP_LOCALE=ru
-```
+Reviewers check:
+- correctness and scope;
+- regressions;
+- security and secret handling;
+- tests/evidence;
+- documentation;
+- architectural impact.
 
----
+A PR is not accepted merely because tests pass. Runtime and user-validation evidence remain separate.
 
-## Стиль кода
+## Evidence discipline
 
-### TypeScript
+Use these evidence levels consistently:
 
-Проект использует **TypeScript** в строгом режиме. Все новые файлы должны быть написаны на TypeScript с явной типизацией. Избегайте использования `any` — если тип неизвестен, используйте `unknown` с последующей проверкой.
+- **E0** — internal hypothesis/specification.
+- **E1** — external signal that the problem exists.
+- **E2** — concrete real use case.
+- **E3** — AIS validated on the real use case.
+- **E4** — user feedback after validation.
+- **E5** — repeatable scenario/pilot.
 
-### ESLint
+Synthetic tests do not count as external user evidence.
 
-Конфигурация ESLint находится в корне проекта. Запуск линтера:
+## Scope rule
 
-```bash
-npm run lint
-```
-
-Все коммиты должны проходить проверку ESLint без ошибок. Предупреждения допускаются только в исключительных случаях с обязательным комментарием `// eslint-disable-next-line` и пояснением причины.
-
-### Prettier
-
-Для автоматического форматирования используется Prettier с общекорпоративной конфигурацией:
-
-```bash
-npm run format
-```
-
-Настройки: отступы — 2 пробела, длина строки — 100 символов, одинарные кавычки, точка с запятой обязательна, завершающая запятая в многострочных конструкциях.
-
----
-
-## Конвенция коммитов
-
-Все коммиты должны следовать формату:
-
-```
-<ТИП>(<ЗАДАЧА>): <краткое описание>
-```
-
-### Типы коммитов
-
-| Тип        | Описание                                        |
-|------------|--------------------------------------------------|
-| `FEAT`     | Новый функционал                                 |
-| `FIX`      | Исправление ошибки                               |
-| `DOC`      | Изменение документации                           |
-| `REFACTOR` | Рефакторинг без изменения поведения              |
-| `TEST`     | Добавление или обновление тестов                 |
-| `CHORE`    | Обслуживание проекта (зависимости, конфигурация) |
-| `PERF`     | Оптимизация производительности                   |
-
-### Формат ссылки на задачу
-
-Используйте идентификатор задачи из трекера в формате `INT-XXX`:
-
-```
-FEAT(INT-042): добавлен экспорт графа знаний в SVG
-FIX(INT-089): исправлена утечка памяти в модуле сканирования
-DOC(INT-103): обновлена документация API плагинов
-```
-
-Если коммит не привязан к конкретной задаче, тип задачи можно опустить:
-
-```
-FIX: исправлена опечатка в заголовке страницы
-```
-
-### Длина и язык
-
-- Первая строка коммита — не более 72 символов.
-- При необходимости добавьте развёрнутое описание после пустой строки.
-- Сообщения коммитов пишутся на **английском языке**.
-
----
-
-## Именование веток
-
-Ветки именуются по схеме:
-
-```
-<тиип>/<задача>-<краткое-описание>
-```
-
-### Допустимые типы веток
-
-| Тип        | Назначение                        | Пример                              |
-|------------|-----------------------------------|--------------------------------------|
-| `feature/` | Новый функционал                  | `feature/INT-042-kg-export`         |
-| `fix/`     | Исправление ошибок                | `fix/INT-089-memory-leak`           |
-| `docs/`    | Работа с документацией            | `docs/INT-103-plugin-api-docs`      |
-| `refactor/`| Рефакторинг                       | `refactor/INT-055-scanner-module`   |
-| `test/`    | Добавление тестов                 | `test/INT-077-api-integration`      |
-| `chore/`   | Обслуживание                      | `chore/INT-090-deps-upgrade`        |
-
----
-
-## Процесс рецензирования Pull Request
-
-### Ревью
-
-1. После создания PR автоматические проверки (CI) запускаются автоматически: линтер, типы, тесты, сборка.
-2. Не менее **двух ревьюеров** из команды мейнтейнеров должны одобрить PR перед слиянием.
-3. Ревьюер проверяет: корректность логики, соответствие стилю кода, полноту тестов, актуальность документации.
-4. Автор PR обязан ответить на все замечания — либо внести исправления, либо аргументировать свою позицию.
-
-### Критерии приёмки
-
-- ✅ Все автоматические проверки пройдены (зелёный CI).
-- ✅ Минимум два одобрения от ревьюеров.
-- ✅ Нет незавершённых обсуждений (unresolved conversations).
-- ✅ Ветка актуальна относительно `main` (нет конфликтов слияния).
-- ✅ Документация обновлена (если затронут публичный API или пользовательский интерфейс).
-
-### Слияние
-
-- Используется **Squash and Merge** для сохранения чистой истории коммитов.
-- Заголовок squash-коммита формируется из заголовка PR.
-
----
-
-## Требования к тестам
-
-### Обязательные тесты
-
-Каждый PR, изменяющий логику приложения, должен включать:
-
-- **Модульные тесты** для новых функций и методов. Покрытие не менее 80% для新增 кода.
-- **Интеграционные тесты** для API-эндпоинтов и взаимодействия между модулями.
-- **E2E-тесты** для критических пользовательских сценариев (создание проекта, запуск сканирования, просмотр отчёта).
-
-### Запуск тестов
-
-```bash
-# Модульные тесты
-npm run test
-
-# Интеграционные тесты
-npm run test:integration
-
-# E2E-тесты
-npm run test:e2e
-
-# Проверка покрытия
-npm run test:coverage
-```
-
-### Инструменты
-
-- **Vitest** — модульные и интеграционные тесты фронтенда.
-- **Jest** — модульные тесты бэкенда.
-- **Playwright** — E2E-тесты.
-- **Testing Library** — тестирование React-компонентов.
-
-### Тестовые данные
-
-Используйте фикстуры из директории `__fixtures__/` для воспроизводимых тестов. Не используйте реальные данные или учётные записи в тестах. Для мокирования внешних API применяйте MSW (Mock Service Worker).
-
----
-
-## Вопросы и обратная связь
-
-Если у вас возникли вопросы, создайте [Discussion](https://github.com/sip-platform/sip/discussions) или обратитесь в чат сообщества. Мы ценим конструктивную критику и открыты к предложениям по улучшению процесса разработки.
+Prefer the smallest change that closes the current bottleneck. Defer architecture, features, and polish that do not affect the critical path.

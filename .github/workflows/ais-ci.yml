@@ -1,0 +1,26 @@
+name: AIS CI
+
+on:
+  push:
+    branches: ["main", "fix/**", "feature/**", "test/**", "chore/**", "docs/**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  ais:
+    name: Build and test AIS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:mvp-ui
