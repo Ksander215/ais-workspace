@@ -6,47 +6,159 @@
 
 AIS is the experimental runtime for understanding an unfamiliar codebase through architecture-aware questions and evidence-backed answers.
 
-### 1. Run AIS
+### 1. Prerequisites
 
-Prerequisites: **Node.js 18+**, npm, and Git.
+Install these before cloning the repository:
+
+- **Node.js 18+** (Node.js 20 LTS is recommended)
+- **npm** (included with Node.js)
+- **Git**
+
+Verify:
+
+```text
+node --version
+npm --version
+git --version
+```
+
+### 2. Clone and build AIS
+
+Run these commands from the repository root:
 
 ```bash
 git clone https://github.com/Ksander215/sec-scanner-workspace.git
 cd sec-scanner-workspace
 npm install
 npm run build
-
-# Start the AIS MVP UI
-npm run mvp-ui
-# → http://localhost:3456
 ```
 
-The AIS interface should open with **“AIS — Understand Any Codebase”**.
+The build must complete successfully before starting the UI.
 
-### 2. Enable real inference
+### 3. Start the AIS UI
 
-The UI can start without a model key, but question answering requires real inference:
+```bash
+npm run mvp-ui
+```
+
+Open:
+
+```text
+http://localhost:3456
+```
+
+The interface should show **“AIS — Understand Any Codebase”**.
+
+**Important:** do not use `cd landing && npm run dev` for AIS. The `landing/` directory belongs to the separate SIP application.
+
+### 4. Windows quick start
+
+The normal build/start commands above work in PowerShell, Command Prompt, and other shells:
+
+```text
+cd sec-scanner-workspace
+npm install
+npm run build
+npm run mvp-ui
+```
+
+If PowerShell reports that `npm` or `node` is not recognized, install/reinstall Node.js and open a new terminal.
+
+### 5. Enable real inference (optional)
+
+AIS can start without a model key. Real question answering requires:
+
+- `AIS_EXECUTION_REAL=true`
+- `AIS_REAL_LLM=true`
+- `OPENAI_API_KEY`
+
+Do **not** put the key into source files or commit it to Git.
+
+#### PowerShell
+
+```powershell
+$env:AIS_EXECUTION_REAL="true"
+$env:AIS_REAL_LLM="true"
+$env:OPENAI_API_KEY="YOUR_KEY"
+npm run mvp-ui
+```
+
+For an OpenAI-compatible provider:
+
+```powershell
+$env:OPENAI_BASE_URL="YOUR_ENDPOINT"
+npm run mvp-ui
+```
+
+#### Windows Command Prompt
+
+```cmd
+set AIS_EXECUTION_REAL=true
+set AIS_REAL_LLM=true
+set OPENAI_API_KEY=YOUR_KEY
+npm run mvp-ui
+```
+
+For an OpenAI-compatible provider:
+
+```cmd
+set OPENAI_BASE_URL=YOUR_ENDPOINT
+npm run mvp-ui
+```
+
+#### Linux / macOS
 
 ```bash
 AIS_EXECUTION_REAL=true AIS_REAL_LLM=true OPENAI_API_KEY=YOUR_KEY npm run mvp-ui
 ```
 
-If your OpenAI-compatible provider uses another endpoint, set `OPENAI_BASE_URL` as well:
+### 6. First-user validation
 
-```bash
-AIS_EXECUTION_REAL=true AIS_REAL_LLM=true OPENAI_API_KEY=YOUR_KEY OPENAI_BASE_URL=YOUR_ENDPOINT npm run mvp-ui
+After the UI opens:
+
+1. Choose **Demo**.
+2. Ask: `What is the overall architecture of this project?`
+3. Inspect the answer, claims, and source evidence.
+4. Ask another architecture question.
+5. Try a question of your own.
+6. For continuity validation, stop AIS, run `npm run mvp-ui` again, reopen the same project, and check **Welcome Back**.
+7. To analyze another public codebase, choose **GitHub Repository** and provide its public GitHub URL.
+
+### 7. Troubleshooting
+
+**`npm` or `node` is not recognized**
+
+Install Node.js 18+ and restart the terminal.
+
+**`git` is not recognized**
+
+Install Git and restart the terminal.
+
+**Port 3456 is already in use**
+
+Start AIS on another port:
+
+PowerShell:
+```powershell
+$env:MVP_UI_PORT="3457"
+npm run mvp-ui
 ```
 
-**Do not commit API keys to the repository.**
+Command Prompt:
+```cmd
+set MVP_UI_PORT=3457
+npm run mvp-ui
+```
 
-### 3. First validation path
+Then open `http://localhost:3457`.
 
-1. Open AIS at `http://localhost:3456`.
-2. Choose **Demo** and ask: `What is the overall architecture of this project?`
-3. Inspect the answer, claims, and source evidence.
-4. Ask a second architecture question, then try a question of your own.
-5. If validating continuity, stop and restart AIS, reopen the same project, and check the **Welcome Back** state.
-6. For a real codebase, choose **GitHub Repository** and provide a public repository.
+**AIS opens, but questions return that real inference is unavailable**
+
+The UI can start without a model key. Check that `AIS_EXECUTION_REAL`, `AIS_REAL_LLM`, and `OPENAI_API_KEY` are set in the same terminal session that starts AIS. If using another OpenAI-compatible provider, also set `OPENAI_BASE_URL`.
+
+**GitHub Repository cannot be resolved**
+
+The current MVP supports public GitHub repositories only. The machine must have Git and network access to GitHub.
 
 ### AIS vs SIP
 
@@ -248,12 +360,12 @@ sec-scanner-workspace/
 │   ├── sdk/              # @sip/sdk
 │   ├── ui/               # @sip/ui
 │   └── shared/           # @sip/shared
-├── docker/               # Dockerfiles and compose
+├── docker/               # Dockerfiles, compose
 ├── scripts/              # Deploy, build, audit utilities
 ├── docs/                 # Documentation + brand book
 ├── ARCHITECTURE.md       # System architecture deep-dive
-├── ROADMAP.md            # Development roadmap
-├── CHANGELOG.md          # Release history
+├── ROADMAP.md            # Roadmap
+├── CHANGELOG.md          # Version history
 └── CONTRIBUTING.md       # Contribution guidelines
 ```
 
@@ -315,10 +427,11 @@ After reading these five documents, you can start development without needing an
 |---|---|
 | [docs/DECISIONS.md](./docs/DECISIONS.md) | Architecture Decision Records (ADR) |
 | [docs/GLOSSARY.md](./docs/GLOSSARY.md) | Project glossary and terminology |
-| [docs/ROADMAP.md](./docs/ROADMAP.md) | Development roadmap and priorities |
+| [docs/ROADMAP.md](./docs/ROADMAP.md) | Strategic roadmap (roadmap) |
 | [docs/CHANGELOG_PRODUCT.md](./docs/CHANGELOG_PRODUCT.md) | User-visible changes only |
 
 ### Technical
+
 | Document | Description |
 |---|---|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture deep-dive (root level) |
