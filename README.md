@@ -29,7 +29,7 @@ Run these commands from the repository root:
 ```bash
 git clone https://github.com/Ksander215/sec-scanner-workspace.git
 cd sec-scanner-workspace
-npm install
+npm ci
 npm run build
 ```
 
@@ -57,7 +57,7 @@ The normal build/start commands above work in PowerShell, Command Prompt, and ot
 
 ```text
 cd sec-scanner-workspace
-npm install
+npm ci
 npm run build
 npm run mvp-ui
 ```
@@ -307,7 +307,7 @@ npm run dev
 
 # Backend (optional)
 cd ../backend
-npm install
+npm ci
 npm run build
 npm start
 # → http://localhost:3001
@@ -323,7 +323,7 @@ docker compose up -d
 
 ```bash
 cd landing
-npm install
+npm ci
 npm run build
 # Static export lands in landing/out/
 # Deploy the out/ directory to any static host (nginx, S3, Cloudflare Pages)

@@ -79,8 +79,8 @@ Failures in prerequisites/launch are tracked separately from product-value failu
 
 ## 8. Current repository risks
 
-- npm dependency installation is not lockfile-reproducible yet; `bun.lock` exists, but the documented workflow uses npm.
-- CI is newly introduced and must be observed on GitHub before being treated as a trusted gate.
+- npm dependency installation is lockfile-backed through `package-lock.json`; CI and the external validation protocol use `npm ci`.
+- CI is now an established engineering gate for the current main branch; it does not substitute for runtime or user validation.
 - Branch protection is not established by this document and should be configured in repository settings.
 - AIS real-inference and user-validation evidence remain environment-dependent.
 
