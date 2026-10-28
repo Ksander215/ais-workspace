@@ -17,11 +17,14 @@ jobs:
           fetch-depth: 0
       - name: Restore README
         run: python3 scripts/readme_restore.py
+      - name: Point the hero at the AIS demo site
+        run: |
+          sed -i 's|<a href="https://sec-scanner.pro"><b>▶ Live demo</a>|<a href="https://ais-workspace.spru.site/"><b>▶ AIS demo</a>|g' README.md scripts/readme_restore.py
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md
+          git add README.md scripts/readme_restore.py
           if git diff --cached --quiet; then
             echo "README already up to date"
             exit 0
