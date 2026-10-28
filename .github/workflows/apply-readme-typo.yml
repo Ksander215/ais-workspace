@@ -1,0 +1,24 @@
+name: apply-readme-typo-fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: |
+          base64 -d aisfix/r3.patch.b64 > /tmp/r3.patch.gz
+          gzip -dc /tmp/r3.patch.gz > /tmp/r3.patch
+          git apply --check /tmp/r3.patch && git apply /tmp/r3.patch
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A README.md
+          git rm -q --cached aisfix/r3.patch.b64
+          git commit -m "docs(ais): fix README typos"
+          git push origin HEAD:main
