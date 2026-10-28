@@ -13,8 +13,9 @@ PRISTINE = "0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4"
 PATH = "README.md"
 
 HERO = """<p align="center">
+  <a href="#-ais--the-active-project"><b>🧠 AIS — the active project</b></a> ·
+  <a href="#-commercial-sec-scanner"><b>💰 Sec Scanner (commercial)</b></a> ·
   <a href="https://sec-scanner.pro"><b>▶ Live demo</b></a> ·
-  <a href="#-commercial-version"><b>💰 Commercial version</b></a> ·
   <a href="https://t.me/zarabotok_pulse_bot"><b>✈️ Telegram-канал</b></a> ·
   <a href="./docs/launch/"><b>📣 Launch plan</b></a>
 </p>
@@ -26,13 +27,17 @@ HERO = """<p align="center">
   <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
 </p>
 
-## 💰 Commercial version
+## 🧠 AIS — the active project
 
-The code here is MIT and free forever. The **commercial build** adds managed scanning, a hosted dashboard and hands-on onboarding:
+**AIS is the project being built and shipped here right now.** It is an AI copilot that reads an unfamiliar codebase and answers architecture questions with evidence behind every claim. AIS stays MIT and free, and its development happens in the open in this repository.
+
+## 💰 Commercial: Sec Scanner
+
+**Sec Scanner** is the paid build of the separate **SIP** contour in this repository — managed scanning, a hosted dashboard and hands-on onboarding. AIS above stays free and MIT for everyone.
 
 | Plan | Price | What you get |
 |---|---|---|
-| Free | 0 ₽ | AIS MVP, 3 scans/month, public repos |
+| Free | 0 ₽ | Sec Scanner demo, 3 scans/month, public repos |
 | Basic | 299 ₽ / mo | 10 scans, Nuclei + ZAP + semgrep, PDF reports |
 | Pro | 799 ₽ / mo | 50 scans, Knowledge Graph, attack paths, API keys |
 | Business | 2 499 ₽ / mo | Unlimited, CI/CD webhooks, team & RBAC, priority support |
@@ -46,9 +51,9 @@ Using AIS/SIP in a paid workflow? Say so in an issue — paid support and custom
 
 SUPPORT = """## ⭐ Support the project
 
-This repository is MIT and stays free. If it saves you time, the fastest way to support it is to **use the commercial build** — every subscription funds development of the open source here.
+This repository is MIT and stays free, and AIS keeps shipping free. The fastest way to support the work is to **use Sec Scanner** — every subscription funds development of the open source here.
 
-- Commercial build & store: [lead.sec-scanner.pro](https://lead.sec-scanner.pro)
+- Sec Scanner store: [lead.sec-scanner.pro](https://lead.sec-scanner.pro)
 - Managed platform: [sec-scanner.pro](https://sec-scanner.pro)
 - Telegram: [@zarabotok_pulse_bot](https://t.me/zarabotok_pulse_bot)
 
@@ -78,7 +83,7 @@ def main() -> int:
         print("license anchor not found", file=sys.stderr)
         return 1
 
-    if "## 💰 Commercial version" not in text:
+    if "## 🧠 AIS — the active project" not in text:
         text = text.replace(ANCHOR, ANCHOR + "\n" + HERO, 1)
     if "## ⭐ Support the project" not in text:
         text = text.replace(LICENSE_ANCHOR, SUPPORT + "\n" + LICENSE_ANCHOR, 1)
