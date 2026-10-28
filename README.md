@@ -489,7 +489,7 @@ This repository is MIT and stays free, and AIS keeps shipping free. The fastest 
 - Managed platform: [sec-scanner.pro](https://sec-scanner.pro)
 - Telegram: [@zarabotok_pulse_bot](https://t.me/zarabotok_pulse_bot)
 
-If you'd rather sponsor directly, use the **Sponsor** button on the repository page.
+The **Sponsor** button on the repository page opens the Sec Scanner store. To be plain about it: that is a purchase, not a donation — there is no separate donation channel, and every payment goes straight to running the paid platform.
 
 ### Contributing
 
