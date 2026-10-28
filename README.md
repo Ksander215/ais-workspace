@@ -117,7 +117,7 @@ npm run mvp-ui
 For an OpenAI-compatible provider:
 
 ```powershell
-$env:AIS_BASE_URL="YOUR_ENDPOINT"
+$env:OPENAI_BASE_URL="YOUR_ENDPOINT"
 npm run mvp-ui
 ```
 
@@ -133,7 +133,7 @@ npm run mvp-ui
 For an OpenAI-compatible provider:
 
 ```cmd
-set AIS_BASE_URL=YOUR_ENDPOINT
+set OPENAI_BASE_URL=YOUR_ENDPOINT
 npm run mvp-ui
 ```
 
@@ -185,7 +185,7 @@ Then open `http://localhost:3457`.
 
 **AIS opens, but questions return that real inference is unavailable**
 
-The UI can start without a model key. Check that `AIS_EXECUTION_REAL`, `AIS_REAL_LLM`, and `OPENAI_API_KEY` are set in the same terminal session that starts AIS. If using another OpenAI-compatible provider, also set `AIS_BASE_URL`.
+The UI can start without a model key. Check that `AIS_EXECUTION_REAL`, `AIS_REAL_LLM`, and `OPENAI_API_KEY` are set in the same terminal session that starts AIS. If using another OpenAI-compatible provider, also set `OPENAI_BASE_URL`.
 
 **GitHub Repository cannot be resolved**
 
@@ -264,17 +264,20 @@ SIP is an open-source security operations platform that consolidates vulnerabili
 │  Marketing     │  Dashboard     │  API Server                    │
 │  Pricing       │  Scanner       │  Plugin Runtime                │
 │  Documentation │  Reports       │  Knowledge Graph Engine        │
-│  Marketplace   │                │  Attack Path Engine            │
-│  Integrations  │                │  AI Recommendations            │
+│                │  Marketplace   │  Attack Path Engine            │
+│                │  Integrations  │  AI Recommendations            │
 ├────────────────┴────────────────┴────────────────────────────────┤
+│                      Plugin System                                │
+│  nmap · nuclei · zap · semgrep · trivy · nikto                   │
+├──────────────────────────────────────────────────────────────────┤
 │                     Shared Packages                               │
-│ @sip/types · @sip/sdk · @sip/ui · @sip/shared                     │
+│  @sip/types · @sip/sdk · @sip/ui · @sip/shared                  │
 ├──────────────────────────────────────────────────────────────────┤
 │                     Parser Engine                                 │
-│ JSON · XML · SARIF · Custom regex-based extractors               │
+│  JSON · XML · SARIF · Custom regex-based extractors              │
 ├──────────────────────────────────────────────────────────────────┤
-│                       AI Engine                                   │
-│ Risk scoring · Prioritization · Natural-language explanations    │
+│                     AI Engine                                     │
+│  Risk scoring · Prioritization · Natural-language explanations    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -366,7 +369,7 @@ sec-scanner-workspace/
 ├── landing/              # Next.js frontend (static export)
 │   ├── src/
 │   │   ├── app/          # 63 pages — dashboard, scanner, marketplace, reports...
-│   │   ├── components/  # UI components, layouts, sections
+│   │   ├── components/   # UI components, layouts, sections
 │   │   └── lib/          # Engine, i18n, API client, demo data
 │   ├── public/           # Static assets
 │   └── out/              # Production build output
@@ -440,7 +443,7 @@ After reading these five documents, you can start development without needing an
 | [docs/PRODUCT_VISION.md](./docs/PRODUCT_VISION.md) | Product vision and what we sell |
 | [docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md) | 11 non-negotiable product principles |
 | [docs/DEVELOPMENT_RULES.md](./docs/DEVELOPMENT_RULES.md) | Mandatory development rules and workflow |
-| [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) | What must pass before "done" |
+| [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) | Release checklist — must pass before "done" |
 
 ### Specifications
 | Document | Description |
@@ -459,18 +462,17 @@ After reading these five documents, you can start development without needing an
 | [docs/CHANGELOG_PRODUCT.md](./docs/CHANGELOG_PRODUCT.md) | User-visible changes only |
 
 ### Technical
+
 | Document | Description |
 |---|---|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture deep-dive (root level) |
-| [ROADMAP.md](./ROADMAP.md) | Roadmap (root level) |
-| [CHANGELOG.md](./CHCHANGELOG.md) | Version history |
+| [ROADMAP.md](./ROADMAP.md) | Strategic roadmap (root level) |
+| [CHANGELOG.md](./CHANGELOG.md) | Version history |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
 | [SECURITY.md](./SECURITY.md) | Security policy |
 | [docs/api.md](./docs/api.md) | API reference |
 | [docs/deployment.md](./docs/deployment.md) | Deployment guide |
 | [docs/plugins.md](./docs/plugins.md) | Plugin development guide |
-
----
 
 ## ⭐ Support the project
 
