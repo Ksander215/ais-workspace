@@ -5,9 +5,6 @@ node_modules/
 .next/
 out/
 dist/
-landing/out/
-landing/.next/
-backend/dist/
 
 # Environment
 .env
@@ -26,7 +23,6 @@ deploy.tar
 
 # Images (managed separately)
 *.png
-!landing/public/**/*.png
 !docs/brand/**/*.png
 
 # Temp files
@@ -50,11 +46,7 @@ Thumbs.db
 coverage/
 
 # Misc
-sip-repo/
 pylib/
-scripts/deploy_fast.py
-sec-scanner-current.json
-sec-scanner-new.json
 *.cache
 
 # Runtime data and build info

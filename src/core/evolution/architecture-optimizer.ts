@@ -1,32 +1,51 @@
 /**
- * Evolution & Continuous Improvement Runtime (ECIR) — Architecture Optimizer
- * TASK-AIS-008A.000
+ * Architecture optimizer — generates architecture optimization suggestions.
  *
- * Analyzes architecture for simplification, decoupling, and cohesion improvements.
+ * @packageDocumentation
  */
 
-import type { Timestamp } from '../types/common.js';
-import { EventClassification } from '../types/common.js';
-import type { DomainEventBase } from '../domain/events/domain-event.js';
-import type { InProcessEventBus } from '../events/event-bus.js';
-import type { IArchitectureOptimizer } from './contracts.js';
-import type {
-  EvolutionNodeId, ArchOptimizationSuggestion, ArchitectureOptimizerConfig,
-} from './types.js';
-import { brandEvolutionNodeId, ArchOptimizationType } from './types.js';
+import { randomUUID } from 'node:crypto';
+import type { EventBus } from '../events/event-bus';
+import { EventClassification } from '../events/types';
+import type { Timestamp } from '../types';
+import { brandEvolutionNodeId } from './types';
 
-const CYCLING_TYPES = [
-  ArchOptimizationType.Simplify,
-  ArchOptimizationType.ReduceCoupling,
-  ArchOptimizationType.ImproveCohesion,
-] as const;
+/**
+ * Architecture optimization suggestion.
+ */
+export interface ArchOptimizationSuggestion {
+  readonly id: string;
+  readonly type: string;
+  readonly title: string;
+  readonly description: string;
+  readonly affectedModules: readonly string[];
+  readonly estimatedImpact: number;
+  readonly estimatedEffort: number;
+  readonly risk: number;
+  readonly createdAt: Timestamp;
+  readonly metadata: Readonly<Record<string, unknown>>;
+}
 
-export class ArchitectureOptimizer implements IArchitectureOptimizer {
+/**
+ * Optimizer configuration.
+ */
+export interface ArchitectureOptimizerConfig {
+  readonly maxSuggestions: number;
+}\n
+/**
+ * Cycling suggestion types.
+ */
+const CYCLING_TYPES: readonly string[] = ['performance', 'maintainability', 'security', 'scalability'];
+
+/**
+ * Architecture optimizer.
+ */
+export class ArchitectureOptimizer {
   private readonly config: ArchitectureOptimizerConfig;
-  private readonly eventBus: InProcessEventBus | null;
-  private suggestions = new Map<string, ArchOptimizationSuggestion>();
+  private readonly eventBus: EventBus | null;
+  private readonly suggestions = new Map<string, ArchOptimizationSuggestion>();
 
-  constructor(config: ArchitectureOptimizerConfig, eventBus?: InProcessEventBus | null) {
+  constructor(config: ArchitectureOptimizerConfig, eventBus?: EventBus | null) {
     this.config = config;
     this.eventBus = eventBus ?? null;
   }
@@ -42,10 +61,10 @@ export class ArchitectureOptimizer implements IArchitectureOptimizer {
       for (const type of CYCLING_TYPES) {
         if (results.length >= this.config.maxSuggestions) break;
 
-        const id = brandEvolutionNodeId(crypto.randomUUID());
+        const id = brandEvolutionNodeId(randomUUID());
         const title = `${type} for ${module}`;
         const description = `Architecture optimization suggestion: ${type} in module ${module}`;
-        const estimatedImpact = 50 + Math.random() * 50;
+        const estimatedImpact = Math.round((50 + Math.random() * 50) * 100) / 100;
 
         const suggestion: ArchOptimizationSuggestion = Object.freeze({
           id,
@@ -53,7 +72,7 @@ export class ArchitectureOptimizer implements IArchitectureOptimizer {
           title,
           description,
           affectedModules: Object.freeze([...targetModules]),
-          estimatedImpact: Math.round(estimatedImpact * 100) / 100,
+          estimatedImpact,
           estimatedEffort: Math.ceil(estimatedImpact * 2),
           risk: Math.round(estimatedImpact * 0.3 * 100) / 100,
           createdAt: now,
@@ -68,49 +87,30 @@ export class ArchitectureOptimizer implements IArchitectureOptimizer {
           classification: EventClassification.Result,
           nodeId: id,
           type,
-          title,
-          estimatedImpact: suggestion.estimatedImpact,
-          timestamp: now,
-          metadata: Object.freeze({}),
-        }, id as string, 'ArchOptimization');
+        });
       }
     }
 
     return Object.freeze(results);
   }
 
-  async getById(id: EvolutionNodeId): Promise<ArchOptimizationSuggestion | null> {
-    return this.suggestions.get(id as string) ?? null;
+  /**
+   * Get all generated suggestions.
+   */
+  getSuggestions(): readonly ArchOptimizationSuggestion[] {
+    return Object.freeze([...this.suggestions.values()]);
   }
 
-  async list(): Promise<readonly ArchOptimizationSuggestion[]> {
-    return Array.from(this.suggestions.values());
-  }
-
-  async count(): Promise<number> {
-    return this.suggestions.size;
-  }
-
-  /** Reset internal state. Used by EvolutionRuntime.shutdown(). */
-  dispose(): void {
-    this.suggestions = new Map();
-  }
-
-  private async publishEvent(
-    event: Record<string, unknown>,
-    aggregateId: string,
-    aggregateType: string,
-  ): Promise<void> {
-    const full = Object.freeze({
-      ...event,
-      eventId: crypto.randomUUID(),
-      sequence: 0,
-      aggregateId,
-      aggregateType,
-      version: '1.0.0',
-    });
-    if (this.eventBus) {
-      await this.eventBus.publish(full as DomainEventBase);
-    }
+  /**
+   * Publish an event if a bus is attached.
+   */
+  private async publishEvent(event: {
+    eventType: string;
+    classification: EventClassification;
+    nodeId: string;
+    type: string;
+  }): Promise<void> {
+    if (!this.eventBus) return;
+    await this.eventBus.publish(event as never);
   }
 }
