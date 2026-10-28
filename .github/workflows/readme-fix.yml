@@ -17,87 +17,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Restore README from pristine commit and patch
+      - name: Restore README
+        run: python3 scripts/readme_restore.py
+      - name: Commit
         run: |
-          set -euo pipefail
-          git checkout 0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4 -- README.md
-          python3 - <<'PY'
-          import io
-
-          hero = """<p align="center">
-  <a href="https://sec-scanner.pro"><b>▶ Live demo</b></a> ·
-  <a href="#-commercial-version"><b>💰 Commercial version</b></a> ·
-  <a href="https://t.me/zarabotok_pulse_bot"><b>✈️ Telegram-канал</b></a> ·
-  <a href="./docs/launch/"><b>📣 Launch plan</b></a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/AIS-AI%20architecture%20copilot-7C3AED" alt="AIS" />
-  <img src="https://img.shields.io/badge/SIP-security%20platform-06B6D4" alt="SIP" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" />
-  <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
-</p>
-
-## 💰 Commercial version
-
-The code here is MIT and free forever. The **commercial build** adds managed scanning, a hosted dashboard and hands-on onboarding:
-
-| Plan | Price | What you get |
-|---|---|---|
-| Free | 0 ₽ | AIS MVP, 3 scans/month, public repos |
-| Basic | 299 ₽ / mo | 10 scans, Nuclei + ZAP + semgrep, PDF reports |
-| Pro | 799 ₽ / mo | 50 scans, Knowledge Graph, attack paths, API keys |
-| Business | 2 499 ₽ / mo | Unlimited, CI/CD webhooks, team & RBAC, priority support |
-
-- Live store: **[lead.sec-scanner.pro](https://lead.sec-scanner.pro)** (Telegram Mini App, card + Telegram Stars)
-- Managed platform: **[sec-scanner.pro](https://sec-scanner.pro)**
-- Source of the store UI: **[a-panel-store](https://github.com/Ksander215/a-panel-store)**
-
-Using AIS/SIP in a paid workflow? Say so in an issue — paid support and custom integrations are available.
-"""
-
-          support = """## ⭐ Support the project
-
-This repository is MIT and stays free. If it saves you time, the fastest way to support it is to **use the commercial build** — every subscription funds development of the open source here.
-
-- Commercial build & store: [lead.sec-scanner.pro](https://lead.sec-scanner.pro)
-- Managed platform: [sec-scanner.pro](https://sec-scanner.pro)
-- Telegram: [@zarabotok_pulse_bot](https://t.me/zarabotok_pulse_bot)
-
-If you'd rather sponsor directly, use the **Sponsor** button on the repository page.
-
-### Contributing
-
-Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/REPOSITORY_GOVERNANCE.md](./docs/REPOSITORY_GOVERNANCE.md). Work that touches the AIS contour must state so explicitly; the release gate is described in [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md).
-"""
-
-          p = 'README.md'
-          s = open(p, encoding='utf-8').read()
-
-          anchor = '> **AIS MVP is the active validation target.** This repository also contains the separate SIP Security Intelligence Platform. They are different product/runtime contours.\n'
-          if anchor not in s:
-              raise SystemExit('hero anchor not found')
-          if '## 💰 Commercial version' not in s:
-              s = s.replace(anchor, anchor + '\n' + hero, 1)
-
-          lic = '---\n\n## License'
-          if lic not in s:
-              raise SystemExit('license anchor not found')
-          if '## ⭐ Support the project' not in s:
-              s = s.replace(lic, support + '\n' + lic, 1)
-
-          open(p, 'w', encoding='utf-8').write(s)
-          PY
-          mkdir -p .github
-          cat > .github/FUNDING.yml <<'EOF'
-          custom: ["https://t.me/zarabotok_pulse_bot"]
-          EOF
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md .github/FUNDING.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
           if git diff --cached --quiet; then
-            echo 'no changes to commit'
+            echo "README already up to date"
             exit 0
           fi
-          git commit -m 'docs: restore README content, add commercial and support sections, add FUNDING.yml'
+          git commit -m "docs(readme): restore content and re-apply commercial sections"
           git push origin HEAD:main
