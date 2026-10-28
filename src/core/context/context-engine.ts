@@ -110,7 +110,7 @@ export class ContextEngine {
     executionId?: string,
   ): Promise<UnifiedContext> {
     // Evict expired entries from all existing contexts
-    this.evictExpiredFromAll();
+    await this.evictExpiredFromAll();
 
     const context = await this.builder.build(sessionId, executionId);
 
@@ -166,63 +166,27 @@ export class ContextEngine {
       updatedKeys: [],
     };
 
-    for (const entry of entries) {
-      const existing = newEntries.get(entry.key);
+    // Keys added during THIS call are protected from eviction: the old code
+    // could evict the very entry it had just added.
+    const protectedKeys = new Set<string>();
 
-      // Check policy before adding
-      const checkResult = this.policyManager.canAddEntry(context, entry);
-      if (!checkResult.ok) {
-        // If we can't add, try eviction first
-        if (this.policyManager.shouldEvict(context)) {
-          const evictKey = this.policyManager.selectEvictionCandidate(context);
-          if (evictKey !== null) {
-            newEntries.delete(evictKey);
-            changes.removedKeys.push(evictKey);
+    // A view of the context without the protected keys — eviction candidates
+    // are chosen from it.
+    const evictionView = (): UnifiedContext => {
+      const view = new Map(newEntries);
+      for (const key of protectedKeys) view.delete(key);
+      return this.rebuildContext(context, view);
+    };
 
-            await this.publishEvent<ContextEntryEvicted>({
-              ...createContextEventBase(
-                'ContextEntryEvicted',
-                EventClassification.Info,
-                context.contextId,
-              ),
-              eventType: 'ContextEntryEvicted',
-              classification: EventClassification.Info,
-              payload: {
-                contextId: context.contextId,
-                evictedKey: evictKey,
-                reason: 'eviction-to-make-room',
-                source: newEntries.get(evictKey)?.source,
-                priority: newEntries.get(evictKey)?.priority,
-                evictedAt: new Date().toISOString(),
-              },
-            });
-          }
-        }
-      }
+    const evictOne = async (reason: string): Promise<boolean> => {
+      const view = evictionView();
+      if (!this.policyManager.shouldEvict(view)) return false;
+      const evictKey = this.policyManager.selectEvictionCandidate(view);
+      if (evictKey === null) return false;
 
-      if (existing) {
-        const resolved = this.policyManager.resolveMergeConflict(existing, entry);
-        newEntries.set(entry.key, resolved);
-        changes.updatedKeys.push(entry.key);
-      } else {
-        newEntries.set(entry.key, entry);
-        changes.addedKeys.push(entry.key);
-      }
-    }
-
-    // Evict expired entries
-    for (const [key, entry] of newEntries) {
-      if (this.policyManager.checkExpiration(entry)) {
-        newEntries.delete(key);
-        changes.removedKeys.push(key);
-      }
-    }
-
-    // Run eviction if needed
-    let tempContext: UnifiedContext = this.rebuildContext(context, newEntries);
-    while (this.policyManager.shouldEvict(tempContext)) {
-      const evictKey = this.policyManager.selectEvictionCandidate(tempContext);
-      if (evictKey === null) break;
+      // Read the entry BEFORE deleting it: the event used to report
+      // source=undefined, priority=undefined.
+      const evicted = newEntries.get(evictKey);
       newEntries.delete(evictKey);
       changes.removedKeys.push(evictKey);
 
@@ -237,12 +201,62 @@ export class ContextEngine {
         payload: {
           contextId: context.contextId,
           evictedKey: evictKey,
-          reason: 'policy-eviction',
+          reason,
+          source: evicted?.source,
+          priority: evicted?.priority,
           evictedAt: new Date().toISOString(),
         },
       });
+      return true;
+    };
 
-      tempContext = this.rebuildContext(context, newEntries);
+    for (const entry of entries) {
+      const existing = newEntries.get(entry.key);
+
+      // Check policy before adding — against the context as it is NOW.
+      let checkResult = this.policyManager.canAddEntry(
+        this.rebuildContext(context, newEntries),
+        entry,
+      );
+
+      if (!checkResult.ok) {
+        // If we can't add, try eviction first (and retry as long as it helps).
+        while (checkResult.ok === false && (await evictOne('eviction-to-make-room'))) {
+          checkResult = this.policyManager.canAddEntry(
+            this.rebuildContext(context, newEntries),
+            entry,
+          );
+        }
+
+        if (!checkResult.ok) {
+          // The policy said no and eviction did not help: the entry must NOT
+          // be added. Previously it was added anyway.
+          continue;
+        }
+      }
+
+      if (existing) {
+        const resolved = this.policyManager.resolveMergeConflict(existing, entry);
+        newEntries.set(entry.key, resolved);
+        changes.updatedKeys.push(entry.key);
+      } else {
+        newEntries.set(entry.key, entry);
+        changes.addedKeys.push(entry.key);
+        protectedKeys.add(entry.key);
+      }
+    }
+
+    // Evict expired entries
+    for (const [key, entry] of newEntries) {
+      if (this.policyManager.checkExpiration(entry)) {
+        newEntries.delete(key);
+        changes.removedKeys.push(key);
+      }
+    }
+
+    // Run eviction if needed (never touching the entries added in this call).
+    while (await evictOne('policy-eviction')) {
+      // keep evicting while the policy asks for it
     }
 
     // Rebuild the context with new entries

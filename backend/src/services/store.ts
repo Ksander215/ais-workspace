@@ -8,6 +8,7 @@
 
 import fs from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import type { Project, ScanResult, Finding, InstallStatus } from "../types";
 import { BUILTIN_TOOL_IDS } from "../plugins/manifests";
 
@@ -33,13 +34,25 @@ function loadFromFile<T>(filePath: string, defaultValue: T): T {
     }
   } catch (err) {
     console.error(`[SIP Store] Error loading ${filePath}:`, err);
+    // Keep the damaged file for recovery instead of silently overwriting it
+    // with defaults on the next write (that destroyed all real data).
+    try {
+      fs.renameSync(filePath, `${filePath}.corrupt-${Date.now()}`);
+    } catch { /* ignore */ }
+    console.error(
+      `[SIP Store] ${filePath} is corrupted and was moved aside. ` +
+      `The server starts with default data; restore the damaged file manually.`,
+    );
   }
   return defaultValue;
 }
 
 function saveToFile<T>(filePath: string, data: T): void {
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    // Atomic write: a crash mid-write used to leave truncated JSON behind.
+    const tmp = `${filePath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
+    fs.renameSync(tmp, filePath);
   } catch (err) {
     console.error(`[SIP Store] Error saving ${filePath}:`, err);
   }
@@ -69,7 +82,9 @@ export function saveProject(project: Project): void {
 
 export function createProject(name: string, description: string): Project {
   const project: Project = {
-    id: `PRJ-${String(Date.now()).slice(-6)}`,
+    // Date.now() collided for projects created within the same second —
+    // the second project silently overwrote the first one.
+    id: `PRJ-${randomUUID().slice(0, 8).toUpperCase()}`,
     name,
     description,
     createdAt: new Date().toISOString(),
@@ -113,7 +128,14 @@ export function getScanResult(id: string): ScanResult | undefined {
 }
 
 export function saveScanResult(scan: ScanResult): void {
-  scans.unshift(scan);
+  // Replace an existing entry with the same id — the running placeholder was
+  // stored first, and a plain unshift left two rows for one scan.
+  const existing = scans.findIndex((s) => s.id === scan.id);
+  if (existing >= 0) {
+    scans[existing] = scan;
+  } else {
+    scans.unshift(scan);
+  }
   if (scans.length > 100) scans.length = 100;
   saveToFile(SCANS_FILE, scans);
 

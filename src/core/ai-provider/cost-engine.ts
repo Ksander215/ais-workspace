@@ -60,6 +60,8 @@ export class CostEngine implements ICostEngine {
     const audioCost = 0;
 
     return Object.freeze({
+      providerId: model?.providerId as unknown as string | undefined,
+      modelId: modelId as unknown as string,
       inputCost,
       outputCost,
       cachedCost,
@@ -71,7 +73,7 @@ export class CostEngine implements ICostEngine {
     });
   }
 
-  async record(cost: CostDetail): Promise<void> {
+  async record(cost: CostDetail, providerId?: string, modelId?: string): Promise<void> {
     this.totalInputCost += cost.inputCost;
     this.totalOutputCost += cost.outputCost;
     this.totalCachedCost += cost.cachedCost;
@@ -85,6 +87,17 @@ export class CostEngine implements ICostEngine {
     this.byType['reasoning'] = (this.byType['reasoning'] ?? 0) + cost.reasoningCost;
     this.byType['image'] = (this.byType['image'] ?? 0) + cost.imageCost;
     this.byType['audio'] = (this.byType['audio'] ?? 0) + cost.audioCost;
+
+    // Per-provider / per-model breakdown. It used to stay empty forever, so
+    // getByProvider()/getByModel() always returned 0.
+    const provider = providerId ?? cost.providerId;
+    const model = modelId ?? cost.modelId;
+    if (provider) {
+      this.byProvider[provider] = (this.byProvider[provider] ?? 0) + cost.totalCost;
+    }
+    if (model) {
+      this.byModel[model] = (this.byModel[model] ?? 0) + cost.totalCost;
+    }
 
     this.publish(Object.freeze({
       eventType: 'cost.recorded',

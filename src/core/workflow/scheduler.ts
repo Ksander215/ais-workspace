@@ -22,7 +22,14 @@ import {
   ExecutionMode as EM,
 } from './types.js';
 
+export interface UnscheduledStage {
+  readonly stageId: StageId;
+  readonly missingDependencies: readonly StageId[];
+}
+
 export class WorkflowScheduler {
+  private _unscheduled: readonly UnscheduledStage[] = [];
+
   /**
    * Generate a schedule plan from a list of stage definitions.
    * Analyzes dependencies and stage types to determine execution order.
@@ -92,7 +99,32 @@ export class WorkflowScheduler {
       group++;
     }
 
+    // Stages that never became ready (cyclic dependencies or a dependency
+    // that does not exist) used to be dropped silently — the workflow then
+    // ran incomplete and the caller had no idea.
+    const unscheduled = stages.filter(s => !completed.has(s.id));
+    this._unscheduled = unscheduled.map(s => ({
+      stageId: s.id,
+      missingDependencies: s.dependencies.filter(d => !stageMap.has(d)),
+    }));
+
+    if (this._unscheduled.length > 0) {
+      console.warn(
+        `[WorkflowScheduler] ${this._unscheduled.length} stage(s) could not be scheduled: ` +
+        this._unscheduled
+          .map(u => `${u.stageId}${u.missingDependencies.length > 0
+            ? ` (unknown dependency: ${u.missingDependencies.join(', ')})`
+            : ' (cyclic dependency)'}`)
+          .join('; '),
+      );
+    }
+
     return plans;
+  }
+
+  /** Stages that could not be scheduled in the last call to schedule(). */
+  get unscheduledStages(): readonly UnscheduledStage[] {
+    return this._unscheduled;
   }
 
   /**

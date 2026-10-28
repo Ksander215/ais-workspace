@@ -1620,6 +1620,12 @@ async function loadInsightsForProject() {
   if (!insightCurrentProjectId) return;
 
   try {
+    // Applying the DEFERRED -> REVISITABLE transitions is a state change,
+    // so it is an explicit POST — the GET below is read-only.
+    try {
+      await apiPost('/api/project/' + insightCurrentProjectId + '/insights/revisit', {});
+    } catch (e) { /* non-critical: list still renders */ }
+
     const [countsRes, listRes, revisitableRes] = await Promise.all([
       apiGet('/api/project/' + insightCurrentProjectId + '/insights/counts'),
       apiGet('/api/project/' + insightCurrentProjectId + '/insights'),

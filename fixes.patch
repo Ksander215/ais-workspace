@@ -1,0 +1,2727 @@
+diff --git a/.gitignore b/.gitignore
+old mode 100644
+new mode 100755
+diff --git a/README.md b/README.md
+index fe961b3..4a032f4 100755
+--- a/README.md
++++ b/README.md
+@@ -430,11 +430,11 @@ Full roadmap: [ROADMAP.md](./ROADMAP.md)
+ 
+ If you're joining the project for the first time, read the documentation in this order:
+ 
+-1. **[docs/HANDOFF.md](./docs/HANDOFF.md)** — Start here. Project overview, current state, next tasks.
+-2. **[docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md)** — Live status of every module and component.
+-3. **[docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md)** — Product philosophy and non-negotiable rules.
+-4. **[docs/DEVELOPMENT_RULES.md](./docs/DEVELOPMENT_RULES.md)** — Mandatory development workflow and checks.
+-5. **[docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md)** — What must pass before any task is "done".
++1. **[docs/product/mvp-definition.md](./docs/product/mvp-definition.md)** — Start here. Project overview, current state, next tasks.
++2. **[docs/product/audits/ais-repository-audit.md](./docs/product/audits/ais-repository-audit.md)** — Live status of every module and component.
++3. **[docs/product/product-principles.md](./docs/product/product-principles.md)** — Product philosophy and non-negotiable rules.
++4. **[CONTRIBUTING.md](./CONTRIBUTING.md)** — Mandatory development workflow and checks.
++5. **[docs/product/validation/reports/mvp-free-release-readiness-001.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md)** — What must pass before any task is "done".
+ 
+ After reading these five documents, you can start development without needing any previous chat history.
+ 
+@@ -445,28 +445,28 @@ After reading these five documents, you can start development without needing an
+ ### Core (read first)
+ | Document | Description |
+ |---|---|
+-| [docs/HANDOFF.md](./docs/HANDOFF.md) | **Start here** — project handoff, current state, next steps |
+-| [docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md) | Live status of every module, debts, risks |
+-| [docs/PRODUCT_VISION.md](./docs/PRODUCT_VISION.md) | Product vision and what we sell |
+-| [docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md) | 11 non-negotiable product principles |
+-| [docs/DEVELOPMENT_RULES.md](./docs/DEVELOPMENT_RULES.md) | Mandatory development rules and workflow |
+-| [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) | Release checklist — must pass before "done" |
++| [docs/product/mvp-definition.md](./docs/product/mvp-definition.md) | **Start here** — project handoff, current state, next steps |
++| [docs/product/audits/ais-repository-audit.md](./docs/product/audits/ais-repository-audit.md) | Live status of every module, debts, risks |
++| [docs/product/product-vision.md](./docs/product/product-vision.md) | Product vision and what we sell |
++| [docs/product/product-principles.md](./docs/product/product-principles.md) | 11 non-negotiable product principles |
++| [CONTRIBUTING.md](./CONTRIBUTING.md) | Mandatory development rules and workflow |
++| [docs/product/validation/reports/mvp-free-release-readiness-001.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md) | Release checklist — must pass before "done" |
+ 
+ ### Specifications
+ | Document | Description |
+ |---|---|
+-| [docs/AIS_SPECIFICATION.md](./docs/AIS_SPECIFICATION.md) | Adaptive Intelligence System full spec |
+-| [docs/UX_GUIDELINES.md](./docs/UX_GUIDELINES.md) | UX guidelines, colors, typography, animations |
+-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture and data flow |
+-| [docs/END_TO_END_CHECKLIST.md](./docs/END_TO_END_CHECKLIST.md) | E2E test scenarios for every page |
++| [SRC-001.000.md](./SRC-001.000.md) | Adaptive Intelligence System full spec |
++| [docs/product/validation/reports/ux-contract-findings-001.md](./docs/product/validation/reports/ux-contract-findings-001.md) | UX guidelines, colors, typography, animations |
++| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture and data flow |
++| [docs/product/validation/reports/mvp-free-real-e2e-001.md](./docs/product/validation/reports/mvp-free-real-e2e-001.md) | E2E test scenarios for every page |
+ 
+ ### Records
+ | Document | Description |
+ |---|---|
+-| [docs/DECISIONS.md](./docs/DECISIONS.md) | Architecture Decision Records (ADR) |
+-| [docs/GLOSSARY.md](./docs/GLOSSARY.md) | Project glossary and terminology |
+-| [docs/ROADMAP.md](./docs/ROADMAP.md) | Strategic roadmap (roadmap) |
+-| [docs/CHANGELOG_PRODUCT.md](./docs/CHANGELOG_PRODUCT.md) | User-visible changes only |
++| [docs/product/product-architecture-decisions.md](./docs/product/product-architecture-decisions.md) | Architecture Decision Records (ADR) |
++| [docs/product/capability-map.md](./docs/product/capability-map.md) | Capability map and terminology |
++| [docs/product/product-roadmap.md](./docs/product/product-roadmap.md) | Strategic roadmap (roadmap) |
++| [landing/CHANGELOG_PRODUCT.md](./landing/CHANGELOG_PRODUCT.md) | User-visible changes only |
+ 
+ ### Technical
+ 
+@@ -477,9 +477,9 @@ After reading these five documents, you can start development without needing an
+ | [CHANGELOG.md](./CHANGELOG.md) | Version history |
+ | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
+ | [SECURITY.md](./SECURITY.md) | Security policy |
+-| [docs/api.md](./docs/api.md) | API reference |
+-| [docs/deployment.md](./docs/deployment.md) | Deployment guide |
+-| [docs/plugins.md](./docs/plugins.md) | Plugin development guide |
++| [backend/src/index.ts](./backend/src/index.ts) | API entry point and routes |
++| [docker/docker-compose.yml](./docker/docker-compose.yml) | Deployment guide |
++| [backend/src/plugins/manifests.ts](./backend/src/plugins/manifests.ts) | Plugin manifests (source of truth) |
+ 
+ ## ⭐ Support the project
+ 
+@@ -493,7 +493,7 @@ The **Sponsor** button on the repository page opens the Sec Scanner store. To be
+ 
+ ### Contributing
+ 
+-Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/REPOSITORY_GOVERNANCE.md](./docs/REPOSITORY_GOVERNANCE.md). Work that touches the AIS contour must state so explicitly; the release gate is described in [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md).
++Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/REPOSITORY_GOVERNANCE.md](./docs/REPOSITORY_GOVERNANCE.md). Work that touches the AIS contour must state so explicitly; the release gate is described in [docs/RELEASE_CHECKLIST.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md).
+ 
+ ---
+ 
+diff --git a/backend/nginx-sip.conf b/backend/nginx-sip.conf
+old mode 100644
+new mode 100755
+diff --git a/backend/src/__tests__/regressions-2.test.ts b/backend/src/__tests__/regressions-2.test.ts
+new file mode 100644
+index 0000000..40bb192
+--- /dev/null
++++ b/backend/src/__tests__/regressions-2.test.ts
+@@ -0,0 +1,199 @@
++/**
++ * Backend regression tests — bugs found in the SIP server audit.
++ *
++ * 1. nmap XML parser found nothing: the regex used `.`, which never matches
++ *    a newline, and nmap -oX prints every element on its own line.
++ * 2. A failed tool (exit 127, command not found) was reported as a successful
++ *    scan with exitCode 0 and zero findings.
++ * 3. A cancelled scan was stored as "completed".
++ * 4. Duplicate finding IDs (FND-TRIVY-001 twice) merged distinct findings.
++ * 5. Risk score: one high finding scored 100/100, and info findings diluted
++ *    a critical one down to 2.
++ * 6. Two projects created in the same second got the same id and one
++ *    overwrote the other.
++ * 7. Corrupted store file was silently replaced with defaults on the next write.
++ * 8. Invalid findings in the request body produced 500 instead of 400.
++ * 9. Attack path pointed at another asset than the finding's own.
++ * 10. CSV export broke on commas and newlines inside fields.
++ */
++
++import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
++import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { resolve } from 'node:path';
++
++const NMAP_XML = `<?xml version="1.0"?>
++<nmaprun scanner="nmap">
++<host><address addr="10.0.0.5" addrtype="ipv4"/><hostnames></hostnames>
++<ports>
++<port protocol="tcp" portid="22">
++<state state="open" reason="syn-ack" reason_ttl="64"/>
++<service name="ssh" product="OpenSSH" version="8.9p1"/>
++</port>
++<port protocol="tcp" portid="3306">
++<state state="open" reason="syn-ack" reason_ttl="64"/>
++<service name="mysql" product="MySQL" version="8.0.35"/>
++</port>
++<port protocol="tcp" portid="23">
++<state state="filtered" reason="no-response" reason_ttl="0"/>
++<service name="telnet"/>
++</port>
++</ports>
++</host>
++</nmaprun>`;
++
++describe('nmap XML parser', () => {
++  it('parses real multi-line nmap -oX output', async () => {
++    const { nmapParser } = await import('../parsers/index.js');
++    const findings = nmapParser.parse(NMAP_XML, '10.0.0.5');
++    expect(findings).toHaveLength(2);
++    const ports = findings.map((f) => f.metadata?.port).sort();
++    expect(ports).toEqual(["22", "3306"]);
++    expect(findings.every((f) => f.id.startsWith("FND-NMAP-"))).toBe(true);
++    expect(new Set(findings.map((f) => f.id)).size).toBe(2);
++  });
++
++  it('ignores ports that are not open', async () => {
++    const { nmapParser } = await import('../parsers/index.js');
++    const findings = nmapParser.parse(NMAP_XML, '10.0.0.5');
++    expect(findings.some((f) => f.metadata?.port === "23")).toBe(false);
++  });
++});
++
++describe('trivy / ZAP finding ids', () => {
++  it('gives every trivy finding a unique id', async () => {
++    const { trivyParser } = await import('../parsers/index.js');
++    const raw = JSON.stringify({
++      Results: [
++        { Target: "a", Vulnerabilities: [{ Title: "v1", Severity: "HIGH" }, { Title: "v2", Severity: "LOW" }] },
++        { Target: "b", Vulnerabilities: [{ Title: "v3", Severity: "CRITICAL" }] },
++      ],
++    });
++    const findings = trivyParser.parse(raw, "x");
++    expect(findings).toHaveLength(3);
++    expect(new Set(findings.map((f) => f.id)).size).toBe(3);
++  });
++});
++
++describe('risk score', () => {
++  const finding = (severity: any, cvss: number) => ({
++    id: "F1", tool: "t", asset: "a", severity, title: "t", description: "d",
++    cvss, evidence: "", recommendation: "", references: [], status: "open",
++    discoveredAt: new Date().toISOString(), metadata: {},
++  } as any);
++
++  it('does not let informational findings dilute a critical one', async () => {
++    const { calculateRiskScore } = await import('../services/scanner.js');
++    const critical = finding("critical", 9.8);
++    const info = Array.from({ length: 100 }, (_, i) => finding("info", 0) as any);
++    const score = calculateRiskScore([critical, ...info]);
++    expect(score).toBeGreaterThanOrEqual(90);
++  });
++
++  it('scores a single high finding below a single critical one', async () => {
++    const { calculateRiskScore } = await import('../services/scanner.js');
++    const critical = calculateRiskScore([finding("critical", 9.8)]);
++    const high = calculateRiskScore([finding("high", 7.5)]);
++    expect(critical).toBeGreaterThan(high);
++  });
++});
++
++describe('project ids and store durability', () => {
++  let dataDir: string;
++
++  beforeEach(() => {
++    dataDir = mkdtempSync(resolve(tmpdir(), 'sip-store-'));
++    process.env.SIP_DATA_DIR = dataDir;
++    vi.resetModules();
++  });
++
++  afterEach(() => {
++    rmSync(dataDir, { recursive: true, force: true });
++    delete process.env.SIP_DATA_DIR;
++  });
++
++  it('never reuses a project id', async () => {
++    const store = await import('../services/store.js');
++    const a = store.createProject("A", "");
++    const b = store.createProject("B", "");
++    expect(a.id).not.toBe(b.id);
++    const names = store.getProjects().map((p) => p.name);
++    expect(names).toContain("A");
++    expect(names).toContain("B");
++    expect(new Set(store.getProjects().map((p) => p.id)).size).toBe(store.getProjects().length);
++  });
++
++  it('keeps a corrupted store file instead of overwriting it with defaults', async () => {
++    writeFileSync(resolve(dataDir, "projects.json"), "{ this is not json", "utf-8");
++    const store = await import('../services/store.js');
++    store.createProject("A", "");
++    const files = readdirSync(dataDir);
++    expect(files.some((f) => f.includes("corrupt"))).toBe(true);
++    // the damaged file itself is still there, moved aside
++    expect(files.some((f) => f.startsWith("projects.json.corrupt"))).toBe(true);
++    // and the live file is valid JSON now
++    expect(() => JSON.parse(readFileSync(resolve(dataDir, "projects.json"), "utf-8"))).not.toThrow();
++  });
++});
++
++describe('analysis routes validate findings', () => {
++  it('answers 400 instead of 500 for incomplete findings', async () => {
++    const express = (await import('express')).default;
++    const { analysisRouter } = await import('../routes/analysis.js');
++    const app = express();
++    app.use(express.json());
++    app.use((_req, res, next) => { res.locals.next = next; next(); });
++    app.use("/api/analysis", analysisRouter);
++
++    const server = app.listen(0);
++    const port = (server.address() as any).port;
++    try {
++      for (const path of ["knowledge-graph", "attack-paths", "recommendations", "report"]) {
++        const res = await fetch(`http://127.0.0.1:${port}/api/analysis/${path}`, {
++          method: "POST",
++          headers: { "Content-Type": "application/json" },
++          body: JSON.stringify({ findings: [{ id: "x" }] }),
++        });
++        expect(res.status, path).toBe(400);
++      }
++    } finally {
++      server.close();
++    }
++  }, 30_000);
++});
++
++describe('attack paths use the finding asset', () => {
++  it('builds the path through the asset of the finding', async () => {
++    const { buildAttackPaths } = await import('../services/attack-paths.js');
++    const make = (asset: string, title: string) => ({
++      id: `F-${asset}`, tool: "t", asset, severity: "critical" as const, title,
++      description: "", cvss: 9.8, evidence: "", recommendation: "",
++      references: [], status: "open", discoveredAt: new Date().toISOString(), metadata: {},
++    } as any);
++    const result = buildAttackPaths([
++      make("hostA", "SQL Injection"),
++      make("hostB", "Cross-site scripting"),
++    ]);
++    const appIds = result.nodes.filter((n) => n.type === "app").map((n) => n.id);
++    expect(appIds).toContain("app-hostA");
++    expect(appIds).toContain("app-hostB");
++    const xssPath = result.paths.find((p) => p.name.includes("XSS"));
++    expect(xssPath).toBeDefined();
++    expect(xssPath!.nodes).toContain("app-hostB");
++    expect(xssPath!.nodes).not.toContain("app-hostA");
++  });
++});
++
++describe('CSV export', () => {
++  it('quotes every cell so commas and newlines do not break the row', async () => {
++    const { exportAsCSV } = await import('../services/reports.js');
++    const csv = exportAsCSV([{
++      id: "F1", tool: "nmap", asset: "a,b", severity: "high" as const,
++      title: 'title "quoted"', description: "line1\nline2", cvss: 7,
++      evidence: "", recommendation: "fix", references: [], status: "open",
++      discoveredAt: new Date().toISOString(), metadata: {},
++    } as any]);
++    const row = csv.split("\n")[1];
++    expect(row).toBe('"F1","nmap","a,b","high","title ""quoted""","7","","","line1 line2","fix","open"');
++  });
++});
+diff --git a/backend/src/__tests__/regressions.test.ts b/backend/src/__tests__/regressions.test.ts
+new file mode 100644
+index 0000000..1c8a78c
+--- /dev/null
++++ b/backend/src/__tests__/regressions.test.ts
+@@ -0,0 +1,175 @@
++/**
++ * Regression tests for bugs found in the SIP backend.
++ * Run: node ../node_modules/vitest/vitest.mjs run --root backend
++ */
++import { describe, it, expect } from "vitest";
++import { parseOutput } from "../parsers";
++import { MANIFESTS_BY_ID } from "../plugins/manifests";
++import { buildCommand, isSafeSourceValue, quoteTarget } from "../plugins/runtime";
++import { exportAsHTML } from "../services/reports";
++import { buildAttackPaths } from "../services/attack-paths";
++import type { Finding } from "../types";
++
++// ─── ZAP parser was registered under "zap" while the tool id is "owasp-zap" ──
++
++describe("parser registry", () => {
++  it("parses OWASP ZAP output under the real tool id", () => {
++    const zapOutput = JSON.stringify({
++      site: [
++        {
++          "@name": "https://example.com",
++          alerts: [
++            {
++              name: "X-Frame-Options Header Missing",
++              desc: "X-Frame-Options header is not included",
++              riskcode: "1",
++              solution: "Set X-Frame-Options",
++              pluginid: "10020",
++            },
++          ],
++        },
++      ],
++    });
++
++    const findings = parseOutput("owasp-zap", zapOutput, "https://example.com");
++    expect(findings.length).toBe(1);
++    expect(findings[0].tool).toBe("owasp-zap");
++    expect(findings[0].severity).toBe("medium");
++  });
++});
++
++// ─── nmap text fallback was unreachable (regex never throws) ───────────────
++
++describe("nmap parser", () => {
++  it("parses plain-text nmap output", () => {
++    const textOutput = [
++      "Nmap scan report for 10.0.0.5",
++      "Host is up (0.01s latency).",
++      "Not shown: 977 closed tcp ports (reset)",
++      "PORT     STATE SERVICE VERSION",
++      "22/tcp   open  ssh     OpenSSH 8.9",
++      "3306/tcp open  mysql",
++    ].join("\n");
++
++    const findings = parseOutput("nmap", textOutput, "10.0.0.5");
++    expect(findings.length).toBe(2);
++    expect(findings.map((f) => f.title)).toContain("Open port 22/tcp ssh");
++    expect(findings.map((f) => f.title)).toContain("Open port 3306/tcp mysql");
++    // 3306 is a high-risk port
++    const mysql = findings.find((f) => f.title.includes("3306"));
++    expect(mysql?.severity).toBe("high");
++  });
++
++  it("still parses XML output", () => {
++    const xml = `<port portid="22"><state state="open"/><service name="ssh" product="OpenSSH" version="8.9"/></port>`;
++    const findings = parseOutput("nmap", xml, "host");
++    expect(findings.length).toBe(1);
++    expect(findings[0].severity).toBe("info");
++  });
++});
++
++// ─── Target was embedded into a shell command without validation ───────────
++
++describe("scan target handling", () => {
++  it("rejects shell metacharacters in source values", () => {
++    expect(isSafeSourceValue("https://example.com")).toBe(true);
++    expect(isSafeSourceValue("10.0.0.1")).toBe(true);
++    expect(isSafeSourceValue("/var/www/app")).toBe(true);
++
++    expect(isSafeSourceValue("example.com; rm -rf /")).toBe(false);
++    expect(isSafeSourceValue("example.com && whoami")).toBe(false);
++    expect(isSafeSourceValue("$(id)")).toBe(false);
++    expect(isSafeSourceValue("`id`")).toBe(false);
++    expect(isSafeSourceValue("host name")).toBe(false);
++    expect(isSafeSourceValue("")).toBe(false);
++  });
++
++  it("quotes the target inside the built command", () => {
++    const manifest = MANIFESTS_BY_ID["nuclei"];
++    const cmd = buildCommand(manifest, "website", "example.com");
++    expect(cmd).toContain("'https://example.com'");
++    expect(cmd).not.toMatch(/\shttps?:\/\/example\.com\s/);
++  });
++
++  it("adds a scheme without losing the quoting", () => {
++    const manifest = MANIFESTS_BY_ID["nuclei"];
++    const cmd = buildCommand(manifest, "website", "example.com");
++    expect(cmd).toContain("'https://example.com'");
++    expect(cmd).not.toContain(" 'example.com'");
++    expect(cmd.match(/example\.com/g)?.length).toBe(1);
++  });
++
++  it("quotes single quotes safely", () => {
++    expect(quoteTarget("a'b")).toBe("'a'\\''b'");
++  });
++});
++
++// ─── Exported HTML report did not escape tool output ──────────────────────
++
++describe("HTML report export", () => {
++  it("escapes HTML in findings and project name", () => {
++    const finding: Finding = {
++      id: "FND-1",
++      tool: "nuclei",
++      asset: "<img src=x onerror=alert(1)>",
++      severity: "high",
++      title: "<script>alert('x')</script>",
++      description: "desc & <b>bold</b>",
++      cvss: 7.5,
++      evidence: "<svg onload=1>",
++      recommendation: "fix <i>it</i>",
++      references: [],
++      status: "open",
++      discoveredAt: new Date().toISOString(),
++    };
++
++    const html = exportAsHTML(
++      {
++        findings: [finding],
++        riskScore: 50,
++        recommendations: [],
++      },
++      "technical",
++      "<script>alert('p')</script>",
++    );
++
++    expect(html).not.toContain("<script>alert");
++    expect(html).not.toContain("<img src=x");
++    expect(html).toContain("&lt;script&gt;");
++    expect(html).toContain("&amp;");
++  });
++});
++
++// ─── Attack paths referenced nodes that were not in the graph ──────────────
++
++describe("attack paths", () => {
++  const baseFinding: Finding = {
++    id: "FND-XSS",
++    tool: "nuclei",
++    asset: "https://app.example.com",
++    severity: "high",
++    title: "Reflected XSS",
++    description: "xss",
++    cvss: 7,
++    cwe: "79",
++    evidence: "e",
++    recommendation: "r",
++    references: [],
++    status: "open",
++    discoveredAt: new Date().toISOString(),
++  };
++
++  it("every node referenced by a path exists in the node list", () => {
++    const result = buildAttackPaths([baseFinding]);
++    const nodeIds = new Set(result.nodes.map((n) => n.id));
++    for (const path of result.paths) {
++      for (const nodeId of path.nodes) {
++        expect(nodeIds.has(nodeId)).toBe(true);
++      }
++      for (const edge of path.edges) {
++        expect(nodeIds.has(edge.source)).toBe(true);
++        expect(nodeIds.has(edge.target)).toBe(true);
++      }
++    }
++  });
++});
+diff --git a/backend/src/__tests__/scanner-failure.test.ts b/backend/src/__tests__/scanner-failure.test.ts
+new file mode 100644
+index 0000000..de0f638
+--- /dev/null
++++ b/backend/src/__tests__/scanner-failure.test.ts
+@@ -0,0 +1,84 @@
++/**
++ * A tool that fails (command not found, exit 127) used to be reported as a
++ * successful scan: exitCode 0, status "completed" and no findings at all.
++ * The scan had to look clean, and a missing binary in the Docker image was
++ * invisible.
++ */
++
++import { describe, it, expect, vi, beforeEach } from 'vitest';
++
++const executeToolMock = vi.fn();
++
++vi.mock('../plugins/runtime.js', async (importOriginal) => {
++  const actual = await importOriginal<any>();
++  return {
++    ...actual,
++    executeTool: (...args: any[]) => executeToolMock(...args),
++  };
++});
++
++describe('scan pipeline reports failed tools', () => {
++  beforeEach(() => {
++    executeToolMock.mockReset();
++  });
++
++  it('marks the scan as failed when a tool exits with 127', async () => {
++    executeToolMock.mockResolvedValue({
++      toolId: "nmap",
++      exitCode: 127,
++      stdout: "",
++      stderr: "sh: nmap: not found",
++      duration: 10,
++      command: "nmap -oX - 10.0.0.5",
++    });
++
++    const { executeScanPipeline } = await import('../services/scanner.js');
++    const fakeRes = { writableEnded: false, write: () => {}, end: () => {} } as any;
++
++    const result = await executeScanPipeline(
++      {
++        projectId: "PRJ-TEST",
++        projectName: "Test",
++        sourceType: "website",
++        sourceValue: "example.com",
++        toolIds: ["nmap"],
++      },
++      "SCAN-TEST",
++      fakeRes,
++    );
++
++    expect(result.exitCode).toBe(1);
++    expect(result.status).toBe("failed");
++    expect(result.stderr.join(" ")).toContain("nmap");
++  });
++
++  it('keeps the scan successful when the tool works', async () => {
++    executeToolMock.mockResolvedValue({
++      toolId: "nmap",
++      exitCode: 0,
++      stdout: "22/tcp open ssh\n",
++      stderr: "",
++      duration: 10,
++      command: "nmap",
++    });
++
++    const { executeScanPipeline } = await import('../services/scanner.js');
++    const fakeRes = { writableEnded: false, write: () => {}, end: () => {} } as any;
++
++    const result = await executeScanPipeline(
++      {
++        projectId: "PRJ-TEST",
++        projectName: "Test",
++        sourceType: "website",
++        sourceValue: "example.com",
++        toolIds: ["nmap"],
++      },
++      "SCAN-TEST-2",
++      fakeRes,
++    );
++
++    expect(result.exitCode).toBe(0);
++    expect(result.status).toBe("completed");
++    expect(result.findings.length).toBeGreaterThan(0);
++  });
++});
+diff --git a/backend/src/index.ts b/backend/src/index.ts
+index 8f828de..13fed24 100755
+--- a/backend/src/index.ts
++++ b/backend/src/index.ts
+@@ -25,7 +25,7 @@ import { verifyTool } from "./plugins/runtime";
+ import { ALL_MANIFESTS } from "./plugins/manifests";
+ 
+ const app = express();
+-const PORT = parseInt(process.env.SIP_PORT || "3001", 10);
++const PORT = parseInt(process.env.SIP_PORT || process.env.PORT || "3001", 10);
+ const CORS_ORIGIN = process.env.SIP_CORS_ORIGIN || "https://sec-scanner.pro";
+ 
+ // ─── Middleware ────────────────────────────────────────────────────────────
+diff --git a/backend/src/parsers/index.ts b/backend/src/parsers/index.ts
+index e46f291..afdc267 100755
+--- a/backend/src/parsers/index.ts
++++ b/backend/src/parsers/index.ts
+@@ -21,36 +21,42 @@ export const nmapParser: ToolParser = {
+     const findings: Finding[] = [];
+     let findingIdx = 0;
+ 
+-    try {
+-      // Try XML parse
+-      const portRegex = /portid="(\d+)".*?<state\s+state="(\w+)".*?<service\s+name="([^"]*)"(?:\s+product="([^"]*)")?(?:\s+version="([^"]*)")?/g;
+-      let match;
+-      while ((match = portRegex.exec(rawOutput)) !== null) {
+-        const [, port, state, service, product, version] = match;
+-        if (state === "open") {
+-          findingIdx++;
+-          const svcDetail = [product, version].filter(Boolean).join(" ") || service;
+-          findings.push({
+-            id: `FND-NMAP-${String(findingIdx).padStart(3, "0")}`,
+-            tool: "nmap",
+-            asset,
+-            severity: isHighRiskPort(parseInt(port)) ? "high" : "info",
+-            title: `Open port ${port}/${service}${svcDetail !== service ? ` (${svcDetail})` : ""}`,
+-            description: `Port ${port} is open running ${svcDetail}. ${isHighRiskPort(parseInt(port)) ? "This port is commonly targeted in attacks." : ""}`,
+-            cvss: isHighRiskPort(parseInt(port)) ? 7.0 : 0.0,
+-            evidence: `${port}/tcp open ${service} ${svcDetail}`,
+-            recommendation: isHighRiskPort(parseInt(port))
+-              ? `Restrict access to port ${port}. Use firewall rules to limit exposure. Consider moving ${service} to a non-standard port.`
+-              : `Verify that port ${port} (${service}) needs to be publicly accessible.`,
+-            references: [],
+-            status: "open",
+-            discoveredAt: new Date().toISOString(),
+-            metadata: { port, service, product: product || "", version: version || "" },
+-          });
+-        }
++    // nmap -oX prints every element on its own line, so `.` never matches
++    // across tags — parse per <port> block instead.
++    const portRegex = /<port\b[^>]*portid="(\d+)"[^>]*>([\s\S]*?)<\/port>/g;
++    let match;
++    while ((match = portRegex.exec(rawOutput)) !== null) {
++      const [, port, body] = match;
++      const state = body.match(/<state[^>]*state="(\w+)"/)?.[1];
++      const service = body.match(/<service[^>]*name="([^"]*)"/)?.[1] || "unknown";
++      const product = body.match(/<service[^>]*product="([^"]*)"/)?.[1] || "";
++      const version = body.match(/<service[^>]*version="([^"]*)"/)?.[1] || "";
++      if (state === "open") {
++        findingIdx++;
++        const svcDetail = [product, version].filter(Boolean).join(" ") || service;
++        findings.push({
++          id: `FND-NMAP-${String(findingIdx).padStart(3, "0")}`,
++          tool: "nmap",
++          asset,
++          severity: isHighRiskPort(parseInt(port)) ? "high" : "info",
++          title: `Open port ${port}/${service}${svcDetail !== service ? ` (${svcDetail})` : ""}`,
++          description: `Port ${port} is open running ${svcDetail}. ${isHighRiskPort(parseInt(port)) ? "This port is commonly targeted in attacks." : ""}`,
++          cvss: isHighRiskPort(parseInt(port)) ? 7.0 : 0.0,
++          evidence: `${port}/tcp open ${service} ${svcDetail}`,
++          recommendation: isHighRiskPort(parseInt(port))
++            ? `Restrict access to port ${port}. Use firewall rules to limit exposure. Consider moving ${service} to a non-standard port.`
++            : `Verify that port ${port} (${service}) needs to be publicly accessible.`,
++          references: [],
++          status: "open",
++          discoveredAt: new Date().toISOString(),
++          metadata: { port, service, product: product || "", version: version || "" },
++        });
+       }
+-    } catch {
+-      // Fallback: try text format
++    }
++
++    // XML output did not yield anything — fall back to plain-text nmap output.
++    // (Previously this fallback lived in a catch block that could never trigger.)
++    if (findings.length === 0) {
+       const textRegex = /(\d+)\/(tcp|udp)\s+(\w+)\s+(\S+)(?:\s+(.+))?/g;
+       let textMatch;
+       while ((textMatch = textRegex.exec(rawOutput)) !== null) {
+@@ -200,19 +206,22 @@ export const trivyParser: ToolParser = {
+     try {
+       const data = JSON.parse(rawOutput);
+       const results = data.Results || [];
++      // Counter must span all results — a per-result index produced duplicate
++      // finding IDs (FND-TRIVY-001 twice) and merged distinct nodes in the graph.
++      let findingIdx = 0;
+ 
+       results.forEach((result: Record<string, unknown>) => {
+         const target = String(result.Target || asset);
+         const vulns = (result.Vulnerabilities || []) as Record<string, unknown>[];
+ 
+-        vulns.forEach((vuln: Record<string, unknown>, idx: number) => {
++        vulns.forEach((vuln: Record<string, unknown>) => {
+           const severity = normalizeSeverity(String(vuln.Severity || "medium"));
+           const cvssData = vuln.CVSS as Record<string, Record<string, Record<string, number>>> | undefined;
+           const rawNvdScore = cvssData?.nvd?.V3Score;
+           const nvdScore: number = typeof rawNvdScore === "number" ? rawNvdScore : severityToCvss(severity);
+ 
+           findings.push({
+-            id: `FND-TRIVY-${String(idx + 1).padStart(3, "0")}`,
++            id: `FND-TRIVY-${String(++findingIdx).padStart(3, "0")}`,
+             tool: "trivy",
+             asset: target,
+             severity,
+@@ -352,16 +361,18 @@ export const zapParser: ToolParser = {
+       const data = JSON.parse(rawOutput);
+       const sites = data.site || [];
+ 
++      let findingIdx = 0;
++
+       sites.forEach((site: Record<string, unknown>) => {
+         const alerts = (site.alerts || []) as Record<string, unknown>[];
+ 
+-        alerts.forEach((alert: Record<string, unknown>, idx: number) => {
++        alerts.forEach((alert: Record<string, unknown>) => {
+           const riskCode = String(alert.riskcode || "1");
+           const severity = riskCodeToSeverity(riskCode);
+           const instances = (alert.instances || []) as Record<string, unknown>[];
+ 
+           findings.push({
+-            id: `FND-ZAP-${String(idx + 1).padStart(3, "0")}`,
++            id: `FND-ZAP-${String(++findingIdx).padStart(3, "0")}`,
+             tool: "owasp-zap",
+             asset: String(site["@name"] || asset),
+             severity,
+@@ -459,6 +470,8 @@ const PARSERS: Record<string, ToolParser> = {
+   nuclei: nucleiParser,
+   trivy: trivyParser,
+   semgrep: semgrepParser,
++  // Manifest/tool id is "owasp-zap"; keep "zap" as an alias for manifest.parser === "zap"
++  "owasp-zap": zapParser,
+   zap: zapParser,
+   nikto: niktoParser,
+ };
+diff --git a/backend/src/plugins/runtime.ts b/backend/src/plugins/runtime.ts
+index 145a32c..ea6e42c 100755
+--- a/backend/src/plugins/runtime.ts
++++ b/backend/src/plugins/runtime.ts
+@@ -33,12 +33,12 @@ export interface RuntimeCallbacks {
+ 
+ const activeProcesses = new Map<string, ChildProcess>();
+ 
+-/** Kill a running process by scan ID + tool ID */
++/** Kill a running process (and its whole process group) by scan ID + tool ID */
+ export function killProcess(scanId: string, toolId: string): boolean {
+   const key = `${scanId}:${toolId}`;
+   const proc = activeProcesses.get(key);
+   if (proc) {
+-    proc.kill("SIGTERM");
++    killProcessTree(proc);
+     activeProcesses.delete(key);
+     return true;
+   }
+@@ -50,7 +50,7 @@ export function killAllScanProcesses(scanId: string): number {
+   let killed = 0;
+   for (const [key, proc] of activeProcesses.entries()) {
+     if (key.startsWith(`${scanId}:`)) {
+-      proc.kill("SIGTERM");
++      killProcessTree(proc);
+       activeProcesses.delete(key);
+       killed++;
+     }
+@@ -58,20 +58,57 @@ export function killAllScanProcesses(scanId: string): number {
+   return killed;
+ }
+ 
++/**
++ * Commands run through a shell, so killing the shell alone leaves the real
++ * tool running. Kill the whole process group instead.
++ */
++function killProcessTree(proc: ChildProcess): void {
++  if (proc.pid === undefined) {
++    proc.kill("SIGTERM");
++    return;
++  }
++  try {
++    process.kill(-proc.pid, "SIGTERM");
++  } catch {
++    try {
++      proc.kill("SIGTERM");
++    } catch {
++      // process already gone
++    }
++  }
++}
++
+ // ─── Build command from manifest + target ─────────────────────────────────
+ 
++/**
++ * Allowed characters for a scan target: hostnames, URLs, IPv4, paths.
++ * Everything else (shell metacharacters, whitespace, quotes) is rejected —
++ * the target ends up inside a shell command, so it must never be able to
++ * break out of it.
++ */
++const SAFE_TARGET_RE = /^[A-Za-z0-9._:/@\-]+$/;
++
++export function isSafeSourceValue(value: string): boolean {
++  return typeof value === "string" && value.length > 0 && value.length <= 2048 && SAFE_TARGET_RE.test(value);
++}
++
++/** Escape a target so it is safe to embed into a shell command line. */
++export function quoteTarget(value: string): string {
++  return `'${value.replace(/'/g, "'\\''")}'`;
++}
++
+ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, sourceValue: string): string {
+   let command = manifest.run.command;
+ 
+-  // Replace {target} placeholder
+-  command = command.replace(/\{target\}/g, sourceValue);
++  // Replace {target} placeholder — quoted to avoid shell injection
++  command = command.replace(/\{target\}/g, quoteTarget(sourceValue));
+ 
+   // Tool-specific command adjustments based on source type
+   if (manifest.id === "nmap") {
+     // nmap needs a hostname/IP, not a git repo
+     if (sourceType === "git" || sourceType === "folder") {
+       // For code sources, try to extract domain from sourceValue or scan localhost
+-      command = command.replace(sourceValue, "127.0.0.1");
++      command = command.replace(quoteTarget(sourceValue), "'127.0.0.1'");
+     }
+   } else if (manifest.id === "trivy") {
+     // trivy fs for filesystem, trivy image for docker
+@@ -93,7 +130,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
+     }
+     // Ensure URL has scheme
+     if (!sourceValue.startsWith("http")) {
+-      command = command.replace(sourceValue, `https://${sourceValue}`);
++      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
+     }
+   } else if (manifest.id === "owasp-zap") {
+     // ZAP needs a URL
+@@ -101,7 +138,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
+       return "";
+     }
+     if (!sourceValue.startsWith("http")) {
+-      command = command.replace(sourceValue, `https://${sourceValue}`);
++      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
+     }
+   } else if (manifest.id === "nikto") {
+     // nikto needs a URL or host
+@@ -109,7 +146,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
+       return "";
+     }
+     if (!sourceValue.startsWith("http")) {
+-      command = command.replace(sourceValue, `https://${sourceValue}`);
++      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
+     }
+   }
+ 
+@@ -182,6 +219,7 @@ export async function executeTool(
+       env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/root/go/bin` },
+       timeout,
+       shell: true,
++      detached: true,
+     });
+ 
+     const key = `${scanId}:${toolId}`;
+@@ -276,6 +314,7 @@ export async function installTool(
+       env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/root/go/bin` },
+       timeout: 600000, // 10 min for install
+       shell: true,
++      detached: true,
+     });
+ 
+     proc.stdout?.on("data", (data: Buffer) => {
+diff --git a/backend/src/routes/analysis.ts b/backend/src/routes/analysis.ts
+index 22f6058..c21062d 100755
+--- a/backend/src/routes/analysis.ts
++++ b/backend/src/routes/analysis.ts
+@@ -24,13 +24,38 @@ import type { Finding, ReportType } from "../types";
+ 
+ export const analysisRouter = Router();
+ 
++/**
++ * Validate the findings array coming from the request body.
++ * An incomplete finding used to crash the services with a 500.
++ */
++function pickFindings(body: { findings?: unknown }): Finding[] | null {
++  if (body?.findings === undefined || body.findings === null) return null;
++  if (!Array.isArray(body.findings)) {
++    throw new Error("findings must be an array");
++  }
++  for (const f of body.findings as Finding[]) {
++    if (!f || typeof f.id !== "string" || typeof f.asset !== "string" ||
++        typeof f.title !== "string" || !Array.isArray(f.references)) {
++      throw new Error("each finding needs id, asset, title and references[]");
++    }
++  }
++  return body.findings as Finding[];
++}
++
++
++
+ // ─── Build Knowledge Graph ────────────────────────────────────────────────
+ 
+ analysisRouter.post("/knowledge-graph", (req: Request, res: Response) => {
+-  const { findings } = req.body as { findings?: Finding[] };
+-
+-  // Use provided findings or latest from store
+-  const data = findings || getLatestFindings();
++  let data: Finding[];
++  try {
++    const provided = pickFindings(req.body as { findings?: unknown });
++    // Use provided findings or latest from store
++    data = provided || getLatestFindings();
++  } catch (err) {
++    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
++    return;
++  }
+   if (!data || data.length === 0) {
+     res.json({ nodes: [], edges: [] });
+     return;
+@@ -56,9 +81,14 @@ analysisRouter.post("/knowledge-graph/:scanId", (req: Request, res: Response) =>
+ // ─── Build Attack Paths ───────────────────────────────────────────────────
+ 
+ analysisRouter.post("/attack-paths", (req: Request, res: Response) => {
+-  const { findings } = req.body as { findings?: Finding[] };
+-
+-  const data = findings || getLatestFindings();
++  let data: Finding[];
++  try {
++    const provided = pickFindings(req.body as { findings?: unknown });
++    data = provided || getLatestFindings();
++  } catch (err) {
++    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
++    return;
++  }
+   if (!data || data.length === 0) {
+     res.json({ nodes: [], paths: [] });
+     return;
+@@ -84,9 +114,14 @@ analysisRouter.post("/attack-paths/:scanId", (req: Request, res: Response) => {
+ // ─── Generate AI Recommendations ──────────────────────────────────────────
+ 
+ analysisRouter.post("/recommendations", (req: Request, res: Response) => {
+-  const { findings } = req.body as { findings?: Finding[] };
+-
+-  const data = findings || getLatestFindings();
++  let data: Finding[];
++  try {
++    const provided = pickFindings(req.body as { findings?: unknown });
++    data = provided || getLatestFindings();
++  } catch (err) {
++    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
++    return;
++  }
+   if (!data || data.length === 0) {
+     res.json([]);
+     return;
+@@ -112,7 +147,7 @@ analysisRouter.post("/recommendations/:scanId", (req: Request, res: Response) =>
+ // ─── Generate Report ──────────────────────────────────────────────────────
+ 
+ analysisRouter.post("/report", (req: Request, res: Response) => {
+-  const { type, findings, riskScore, projectName, format } = req.body as {
++  const { type, riskScore, projectName, format } = req.body as {
+     type?: ReportType;
+     findings?: Finding[];
+     riskScore?: number;
+@@ -120,7 +155,14 @@ analysisRouter.post("/report", (req: Request, res: Response) => {
+     format?: "json" | "sarif" | "markdown" | "csv" | "html";
+   };
+ 
+-  const data = findings || getLatestFindings();
++  let data: Finding[];
++  try {
++    const provided = pickFindings(req.body as { findings?: unknown });
++    data = provided || getLatestFindings();
++  } catch (err) {
++    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
++    return;
++  }
+   const score = riskScore || 0;
+   const name = projectName || "SIP Scan";
+ 
+diff --git a/backend/src/routes/projects.ts b/backend/src/routes/projects.ts
+index 36934d6..44bb56c 100755
+--- a/backend/src/routes/projects.ts
++++ b/backend/src/routes/projects.ts
+@@ -17,6 +17,7 @@ import {
+   deleteProject,
+   getProjectScans,
+ } from "../services/store";
++import type { Project } from "../types";
+ 
+ export const projectsRouter = Router();
+ 
+@@ -61,7 +62,20 @@ projectsRouter.put("/:id", (req: Request, res: Response) => {
+     return;
+   }
+ 
+-  const updated = { ...project, ...req.body, id: project.id, createdAt: project.createdAt };
++  // Only the user-editable fields are accepted — a blind spread let the
++  // client overwrite securityScore, status, scans, findings and settings.
++  const body = (req.body || {}) as Partial<Project>;
++  const updated: Project = {
++    ...project,
++    name: typeof body.name === "string" ? body.name : project.name,
++    description: typeof body.description === "string" ? body.description : project.description,
++    settings: project.settings,
++    id: project.id,
++    createdAt: project.createdAt,
++  };
++  if (body.settings && typeof body.settings === "object") {
++    updated.settings = { ...project.settings, ...(body.settings as Project["settings"]) };
++  }
+   saveProject(updated);
+   res.json(updated);
+ });
+diff --git a/backend/src/routes/scanner.ts b/backend/src/routes/scanner.ts
+index 7111ac0..932fbaa 100755
+--- a/backend/src/routes/scanner.ts
++++ b/backend/src/routes/scanner.ts
+@@ -4,14 +4,15 @@
+  * GET  /api/scans         — List scan results
+  * GET  /api/scans/:id     — Get scan result
+  * POST /api/scans/:id/cancel — Cancel a running scan
+- * GET  /api/scans/stream/:id — SSE stream for scan progress
++ * POST /api/scans (Accept: text/event-stream) — live progress stream
+  */
+ 
+ import { Router, type Request, type Response } from "express";
+ import { v4 as uuidv4 } from "uuid";
+-import { executeScanPipeline, cancelScan, isScanActive } from "../services/scanner";
++import { executeScanPipeline, cancelScan } from "../services/scanner";
+ import { saveScanResult, getScanResults, getScanResult, getProject } from "../services/store";
+ import { MANIFESTS_BY_ID } from "../plugins/manifests";
++import { isSafeSourceValue } from "../plugins/runtime";
+ import type { ScanConfig } from "../types";
+ 
+ export const scannerRouter = Router();
+@@ -22,11 +23,17 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
+   const { projectId, projectName, sourceType, sourceValue, toolIds } = req.body as ScanConfig;
+ 
+   // Validate
+-  if (!sourceType || !sourceValue || !toolIds || toolIds.length === 0) {
++  if (!sourceType || !sourceValue || !Array.isArray(toolIds) || toolIds.length === 0) {
+     res.status(400).json({ error: "Missing required fields: sourceType, sourceValue, toolIds" });
+     return;
+   }
+ 
++  const VALID_SOURCE_TYPES = ["git", "folder", "website", "api", "docker"];
++  if (!VALID_SOURCE_TYPES.includes(sourceType)) {
++    res.status(400).json({ error: `Invalid sourceType: ${VALID_SOURCE_TYPES.join(", ")}` });
++    return;
++  }
++
+   // Validate tool IDs
+   const validToolIds = toolIds.filter((id: string) => MANIFESTS_BY_ID[id]);
+   if (validToolIds.length === 0) {
+@@ -34,6 +41,15 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
+     return;
+   }
+ 
++  // Validate target — it is embedded into a shell command, so only a safe
++  // character set (hostnames, URLs, paths) is accepted.
++  if (!isSafeSourceValue(sourceValue)) {
++    res.status(400).json({
++      error: "Invalid sourceValue: only letters, digits and . _ - : / @ are allowed",
++    });
++    return;
++  }
++
+   const scanId = `SCAN-${uuidv4().slice(0, 8)}`;
+   const config: ScanConfig = {
+     projectId: projectId || "PRJ-001",
+@@ -43,6 +59,27 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
+     toolIds: validToolIds,
+   };
+ 
++  // Store a placeholder right away, so GET /api/scans/:id can report the
++  // running scan instead of answering 404 while the pipeline works.
++  const startedAt = new Date().toISOString();
++  saveScanResult({
++    id: scanId,
++    projectId: config.projectId,
++    projectName: config.projectName,
++    sourceType: config.sourceType,
++    sourceValue: config.sourceValue,
++    tools: config.toolIds,
++    status: "running",
++    startedAt,
++    completedAt: "",
++    findings: [],
++    riskScore: 0,
++    timeline: [],
++    stdout: [],
++    stderr: [],
++    exitCode: 0,
++  });
++
+   // Check if request wants SSE stream
+   const acceptSSE = req.headers.accept?.includes("text/event-stream");
+ 
+@@ -136,26 +173,9 @@ scannerRouter.post("/:id/cancel", (req: Request, res: Response) => {
+   }
+ });
+ 
+-// ─── SSE stream for scan progress ─────────────────────────────────────────
+-
+-scannerRouter.get("/stream/:id", (req: Request, res: Response) => {
+-  if (!isScanActive(req.params.id)) {
+-    res.status(404).json({ error: "No active scan with this ID" });
+-    return;
+-  }
+-
+-  res.writeHead(200, {
+-    "Content-Type": "text/event-stream",
+-    "Cache-Control": "no-cache",
+-    Connection: "keep-alive",
+-    "X-Accel-Buffering": "no",
+-  });
+-
+-  // For now, just keep the connection open.
+-  // The actual SSE events are sent during scan execution in the POST / handler.
+-  // This endpoint exists for reconnecting to an ongoing scan.
+-
+-  req.on("close", () => {
+-    // Client disconnected
+-  });
+-});
++// ─── Scan status ──────────────────────────────────────────────────────────
++//
++// There is no separate SSE endpoint for an already running scan: it never
++// emitted a single event, so clients had to poll GET /api/scans/:id instead.
++// The POST handler itself streams events when the client asks for
++// `Accept: text/event-stream`.
+diff --git a/backend/src/services/attack-paths.ts b/backend/src/services/attack-paths.ts
+index 60df667..a0c0b0e 100755
+--- a/backend/src/services/attack-paths.ts
++++ b/backend/src/services/attack-paths.ts
+@@ -103,9 +103,40 @@ export function buildAttackPaths(findings: Finding[]): AttackPathResult {
+   return { nodes, paths };
+ }
+ 
++/**
++ * Paths may reference infrastructure nodes (database / secrets / orchestrator)
++ * that only exist when a matching finding was detected. Make sure every node
++ * referenced by a path is really present in the graph.
++ */
++function ensureNode(
++  nodes: TopologyNode[],
++  id: string,
++  type: string,
++  label: string,
++  risk: number,
++  detail?: string,
++): void {
++  if (!nodes.some((n) => n.id === id)) {
++    nodes.push({ id, type, label, risk, detail });
++  }
++}
++
++
++/**
++ * Pick the application node that belongs to the finding's own asset.
++ * `nodes.find(n => n.type === "app")` always returned the first app, so a path
++ * for hostB was drawn through hostA while its description named hostB.
++ */
++function pickAppNode(finding: Finding, nodes: TopologyNode[]): TopologyNode | undefined {
++  const wanted = `app-${finding.asset.replace(/[^a-zA-Z0-9]/g, "-")}`;
++  return nodes.find((n) => n.id === wanted) ?? nodes.find((n) => n.type === "app");
++}
++
+ function buildSQLiPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+-  const appNode = nodes.find((n) => n.type === "app");
++  const appNode = pickAppNode(finding, nodes);
+   const appId = appNode?.id || "app-default";
++  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
++  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
+ 
+   return {
+     name: finding.cve ? `${finding.cve} → Database Compromise` : "SQL Injection → Database Compromise",
+@@ -121,8 +152,10 @@ function buildSQLiPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+ }
+ 
+ function buildXSSPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+-  const appNode = nodes.find((n) => n.type === "app");
++  const appNode = pickAppNode(finding, nodes);
+   const appId = appNode?.id || "app-default";
++  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
++  ensureNode(nodes, "secrets", "secrets", "Secrets Store", 95, "Vault / Config");
+ 
+   return {
+     name: finding.cve ? `${finding.cve} → Session Hijack` : "XSS → Session Hijack",
+@@ -138,8 +171,11 @@ function buildXSSPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+ }
+ 
+ function buildSecretsPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+-  const appNode = nodes.find((n) => n.type === "app");
++  const appNode = pickAppNode(finding, nodes);
+   const appId = appNode?.id || "app-default";
++  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
++  ensureNode(nodes, "secrets", "secrets", "Secrets Store", 95, "Vault / Config");
++  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
+ 
+   return {
+     name: "Hardcoded Credentials → Full System Access",
+@@ -156,6 +192,8 @@ function buildSecretsPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+ }
+ 
+ function buildContainerEscapePath(finding: Finding, nodes: TopologyNode[]): AttackPath {
++  ensureNode(nodes, "orchestrator", "orchestrator", "K8s / Docker", 75, "Container orchestration");
++  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
+   return {
+     name: "Container Escape → Infrastructure Compromise",
+     description: `Attack path exploiting ${finding.title} to escape the container and gain access to the host infrastructure.`,
+@@ -170,9 +208,12 @@ function buildContainerEscapePath(finding: Finding, nodes: TopologyNode[]): Atta
+ }
+ 
+ function buildGenericPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+-  const appNode = nodes.find((n) => n.type === "app");
++  const appNode = pickAppNode(finding, nodes);
+   const appId = appNode?.id || "app-default";
+-  const lastNodeId = nodes[nodes.length - 1]?.id || "database";
++  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
++  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
++  let lastNodeId = nodes[nodes.length - 1]?.id || "database";
++  if (lastNodeId === appId) lastNodeId = "database";
+ 
+   return {
+     name: `${finding.title} → Asset Compromise`,
+@@ -188,6 +229,7 @@ function buildGenericPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+ }
+ 
+ function buildDefaultPath(nodes: TopologyNode[]): AttackPath {
++  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
+   return {
+     name: "External → Application → Database",
+     description: "Standard attack path from the internet through the application layer to the database.",
+diff --git a/backend/src/services/reports.ts b/backend/src/services/reports.ts
+index fead7c2..59b6f79 100755
+--- a/backend/src/services/reports.ts
++++ b/backend/src/services/reports.ts
+@@ -186,12 +186,13 @@ export function exportAsMarkdown(content: ReportContent, type: ReportType, proje
+ 
+ export function exportAsCSV(findings: Finding[]): string {
+   const headers = ["ID", "Tool", "Asset", "Severity", "Title", "CVSS", "CWE", "CVE", "Description", "Recommendation", "Status"];
++  // Every cell must be quoted: a comma in the asset or a newline in the
++  // description used to break the row apart.
++  const cell = (value: string): string => `"${value.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+   const rows = findings.map((f) => [
+-    f.id, f.tool, f.asset, f.severity, `"${f.title.replace(/"/g, '""')}"`,
+-    String(f.cvss), f.cwe || "", f.cve || "",
+-    `"${f.description.replace(/"/g, '""')}"`,
+-    `"${f.recommendation.replace(/"/g, '""')}"`,
+-    f.status,
++    cell(f.id), cell(f.tool), cell(f.asset), cell(f.severity), cell(f.title),
++    cell(String(f.cvss)), cell(f.cwe || ""), cell(f.cve || ""),
++    cell(f.description), cell(f.recommendation), cell(f.status),
+   ].join(","));
+   return [headers.join(","), ...rows].join("\n");
+ }
+@@ -201,11 +202,14 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
+     critical: "#dc2626", high: "#d97706", medium: "#f59e0b", low: "#22c55e", info: "#06b6d4",
+   };
+ 
++  const safeProject = escapeHtml(projectName);
++  const safeSummary = content.executiveSummary ? escapeHtml(content.executiveSummary) : "";
++
+   return `<!DOCTYPE html>
+ <html lang="en">
+ <head>
+   <meta charset="UTF-8">
+-  <title>SIP Report — ${projectName}</title>
++  <title>SIP Report — ${safeProject}</title>
+   <style>
+     body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1a1a1a; }
+     h1 { border-bottom: 2px solid #00d4ff; padding-bottom: 0.5rem; }
+@@ -218,21 +222,21 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
+ </head>
+ <body>
+   <h1>${type === "executive" ? "Executive" : type === "technical" ? "Technical" : "Compliance"} Report</h1>
+-  <p><strong>Project:</strong> ${projectName}</p>
++  <p><strong>Project:</strong> ${safeProject}</p>
+   <p><strong>Risk Score:</strong> <span class="risk-score">${content.riskScore}/100</span></p>
+   <p><strong>Findings:</strong> ${content.findings.length}</p>
+   <p><strong>Generated:</strong> ${new Date().toISOString()}</p>
+ 
+-  ${content.executiveSummary ? `<h2>Executive Summary</h2><pre style="white-space: pre-wrap;">${content.executiveSummary}</pre>` : ""}
++  ${safeSummary ? `<h2>Executive Summary</h2><pre style="white-space: pre-wrap;">${safeSummary}</pre>` : ""}
+ 
+   <h2>Findings</h2>
+   ${content.findings.map((f) => `
+     <div class="finding">
+-      <h3>${f.id}: ${f.title} <span class="severity" style="background:${severityColors[f.severity]}">${f.severity.toUpperCase()}</span></h3>
+-      <p><strong>Asset:</strong> ${f.asset} | <strong>CVSS:</strong> ${f.cvss} | <strong>Tool:</strong> ${f.tool}</p>
+-      <p>${f.description}</p>
+-      <p><strong>Recommendation:</strong> ${f.recommendation}</p>
+-      ${f.evidence ? `<p><strong>Evidence:</strong> <code>${f.evidence}</code></p>` : ""}
++      <h3>${escapeHtml(f.id)}: ${escapeHtml(f.title)} <span class="severity" style="background:${severityColors[f.severity]}">${f.severity.toUpperCase()}</span></h3>
++      <p><strong>Asset:</strong> ${escapeHtml(f.asset)} | <strong>CVSS:</strong> ${f.cvss} | <strong>Tool:</strong> ${escapeHtml(f.tool)}</p>
++      <p>${escapeHtml(f.description)}</p>
++      <p><strong>Recommendation:</strong> ${escapeHtml(f.recommendation)}</p>
++      ${f.evidence ? `<p><strong>Evidence:</strong> <code>${escapeHtml(f.evidence)}</code></p>` : ""}
+     </div>
+   `).join("")}
+ 
+@@ -242,3 +246,13 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
+ </body>
+ </html>`;
+ }
++
++/** Escape user/tool-controlled text before embedding it into HTML output. */
++function escapeHtml(value: string): string {
++  return value
++    .replace(/&/g, "&amp;")
++    .replace(/</g, "&lt;")
++    .replace(/>/g, "&gt;")
++    .replace(/"/g, "&quot;")
++    .replace(/'/g, "&#39;");
++}
+diff --git a/backend/src/services/scanner.ts b/backend/src/services/scanner.ts
+index 5537853..a8417fe 100755
+--- a/backend/src/services/scanner.ts
++++ b/backend/src/services/scanner.ts
+@@ -48,6 +48,7 @@ export async function executeScanPipeline(
+   const allStdout: string[] = [];
+   const allStderr: string[] = [];
+   let overallExitCode = 0;
++  const failedTools: string[] = [];
+ 
+   // Register active scan
+   activeScans.set(scanId, { config, cancelled: false });
+@@ -139,14 +140,15 @@ export async function executeScanPipeline(
+       });
+ 
+       allStdout.push(...stdoutLines);
+-      if (result.exitCode !== 0 && result.exitCode !== -1) {
+-        // Non-zero exit but not crash — may still have useful output
+-      }
+       if (result.error) {
+         allStderr.push(`[${toolId}] ERROR: ${result.error}`);
+       }
+-      if (result.exitCode === -1) {
++      if (result.exitCode !== 0) {
++        // The tool ran and failed (127 = command not found, 1 = tool error).
++        // Silently treating this as success hid missing binaries in Docker.
++        allStderr.push(`[${toolId}] exited with code ${result.exitCode}`);
+         overallExitCode = 1; // Mark as partially failed
++        failedTools.push(toolId);
+       }
+ 
+       // Parse tool output into Findings
+@@ -172,6 +174,11 @@ export async function executeScanPipeline(
+       });
+     }
+ 
++    // Cancellation may have arrived while the last tool was running.
++    if (activeScans.get(scanId)?.cancelled) {
++      throw new Error("Scan cancelled");
++    }
++
+     // ─── Stage N+1: Correlate ─────────────────────────────────────────
+     const correlateStageIndex = config.toolIds.length + 1;
+     sendSSE("stage", {
+@@ -216,7 +223,7 @@ export async function executeScanPipeline(
+       sourceType: config.sourceType,
+       sourceValue: config.sourceValue,
+       tools: config.toolIds,
+-      status: "completed",
++      status: failedTools.length > 0 ? "failed" : "completed",
+       startedAt,
+       completedAt: new Date().toISOString(),
+       findings: uniqueFindings,
+@@ -276,7 +283,7 @@ function deduplicateFindings(findings: Finding[]): Finding[] {
+   });
+ }
+ 
+-function calculateRiskScore(findings: Finding[]): number {
++export function calculateRiskScore(findings: Finding[]): number {
+   if (findings.length === 0) return 0;
+ 
+   const severityWeights: Record<Severity, number> = {
+@@ -287,11 +294,16 @@ function calculateRiskScore(findings: Finding[]): number {
+     info: 1,
+   };
+ 
++  // Informational findings (open ports etc.) carry no weight and must not
++  // dilute the score of real vulnerabilities.
++  const scored = findings.filter((f) => f.severity !== "info");
++  if (scored.length === 0) return 0;
++
+   let totalWeight = 0;
+-  for (const f of findings) {
++  for (const f of scored) {
+     totalWeight += severityWeights[f.severity] * (f.cvss / 10);
+   }
+ 
+-  const maxPossible = findings.length * 30;
+-  return Math.min(100, Math.round((totalWeight / maxPossible) * 100 * 2));
++  const maxPossible = scored.length * 30;
++  return Math.min(100, Math.round((totalWeight / maxPossible) * 100));
+ }
+diff --git a/backend/src/services/store.ts b/backend/src/services/store.ts
+index b733e53..be302ee 100755
+--- a/backend/src/services/store.ts
++++ b/backend/src/services/store.ts
+@@ -8,6 +8,7 @@
+ 
+ import fs from "fs";
+ import path from "path";
++import { randomUUID } from "crypto";
+ import type { Project, ScanResult, Finding, InstallStatus } from "../types";
+ import { BUILTIN_TOOL_IDS } from "../plugins/manifests";
+ 
+@@ -33,13 +34,25 @@ function loadFromFile<T>(filePath: string, defaultValue: T): T {
+     }
+   } catch (err) {
+     console.error(`[SIP Store] Error loading ${filePath}:`, err);
++    // Keep the damaged file for recovery instead of silently overwriting it
++    // with defaults on the next write (that destroyed all real data).
++    try {
++      fs.renameSync(filePath, `${filePath}.corrupt-${Date.now()}`);
++    } catch { /* ignore */ }
++    console.error(
++      `[SIP Store] ${filePath} is corrupted and was moved aside. ` +
++      `The server starts with default data; restore the damaged file manually.`,
++    );
+   }
+   return defaultValue;
+ }
+ 
+ function saveToFile<T>(filePath: string, data: T): void {
+   try {
+-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
++    // Atomic write: a crash mid-write used to leave truncated JSON behind.
++    const tmp = `${filePath}.tmp`;
++    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf-8");
++    fs.renameSync(tmp, filePath);
+   } catch (err) {
+     console.error(`[SIP Store] Error saving ${filePath}:`, err);
+   }
+@@ -69,7 +82,9 @@ export function saveProject(project: Project): void {
+ 
+ export function createProject(name: string, description: string): Project {
+   const project: Project = {
+-    id: `PRJ-${String(Date.now()).slice(-6)}`,
++    // Date.now() collided for projects created within the same second —
++    // the second project silently overwrote the first one.
++    id: `PRJ-${randomUUID().slice(0, 8).toUpperCase()}`,
+     name,
+     description,
+     createdAt: new Date().toISOString(),
+@@ -113,7 +128,14 @@ export function getScanResult(id: string): ScanResult | undefined {
+ }
+ 
+ export function saveScanResult(scan: ScanResult): void {
+-  scans.unshift(scan);
++  // Replace an existing entry with the same id — the running placeholder was
++  // stored first, and a plain unshift left two rows for one scan.
++  const existing = scans.findIndex((s) => s.id === scan.id);
++  if (existing >= 0) {
++    scans[existing] = scan;
++  } else {
++    scans.unshift(scan);
++  }
+   if (scans.length > 100) scans.length = 100;
+   saveToFile(SCANS_FILE, scans);
+ 
+diff --git a/bun.lock b/bun.lock
+index 5417944..b3e0bb0 100755
+--- a/bun.lock
++++ b/bun.lock
+@@ -9,6 +9,9 @@
+         "typescript": "^5.6.0",
+         "vitest": "^4.1.10",
+       },
++      "optionalDependencies": {
++        "openai": "^4.73.0",
++      },
+     },
+   },
+   "packages": {
+@@ -126,6 +129,8 @@
+ 
+     "@types/node": ["@types/node@22.20.1", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q=="],
+ 
++    "@types/node-fetch": ["@types/node-fetch@2.6.13", "", { "dependencies": { "@types/node": "*", "form-data": "^4.0.4" } }, "sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw=="],
++
+     "@vitest/expect": ["@vitest/expect@4.1.10", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "@types/chai": "^5.2.2", "@vitest/spy": "4.1.10", "@vitest/utils": "4.1.10", "chai": "^6.2.2", "tinyrainbow": "^3.1.0" } }, "sha512-YsCn+qAk1GWjQOWFEsEcL2gNQ0zmVmQu3T03qP6UyjhtmdtwtbuI+DASn/7iQB3HGTXkdBwGddzxPlmiql5vlA=="],
+ 
+     "@vitest/mocker": ["@vitest/mocker@4.1.10", "", { "dependencies": { "@vitest/spy": "4.1.10", "estree-walker": "^3.0.3", "magic-string": "^0.30.21" }, "peerDependencies": { "msw": "^2.4.9", "vite": "^6.0.0 || ^7.0.0 || ^8.0.0" }, "optionalPeers": ["msw", "vite"] }, "sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow=="],
+@@ -140,30 +145,90 @@
+ 
+     "@vitest/utils": ["@vitest/utils@4.1.10", "", { "dependencies": { "@vitest/pretty-format": "4.1.10", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA=="],
+ 
++    "abort-controller": ["abort-controller@3.0.0", "", { "dependencies": { "event-target-shim": "^5.0.0" } }, "sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg=="],
++
++    "agentkeepalive": ["agentkeepalive@4.6.0", "", { "dependencies": { "humanize-ms": "^1.2.1" } }, "sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ=="],
++
+     "assertion-error": ["assertion-error@2.0.1", "", {}, "sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA=="],
+ 
++    "asynckit": ["asynckit@0.4.0", "", {}, "sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q=="],
++
++    "call-bind-apply-helpers": ["call-bind-apply-helpers@1.0.2", "", { "dependencies": { "es-errors": "^1.3.0", "function-bind": "^1.1.2" } }, "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ=="],
++
+     "chai": ["chai@6.2.2", "", {}, "sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg=="],
+ 
++    "combined-stream": ["combined-stream@1.0.8", "", { "dependencies": { "delayed-stream": "~1.0.0" } }, "sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg=="],
++
+     "convert-source-map": ["convert-source-map@2.0.0", "", {}, "sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg=="],
+ 
++    "delayed-stream": ["delayed-stream@1.0.0", "", {}, "sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ=="],
++
++    "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
++
++    "es-define-property": ["es-define-property@1.0.1", "", {}, "sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g=="],
++
++    "es-errors": ["es-errors@1.3.0", "", {}, "sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw=="],
++
+     "es-module-lexer": ["es-module-lexer@2.3.1", "", {}, "sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA=="],
+ 
++    "es-object-atoms": ["es-object-atoms@1.1.2", "", { "dependencies": { "es-errors": "^1.3.0" } }, "sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw=="],
++
++    "es-set-tostringtag": ["es-set-tostringtag@2.1.0", "", { "dependencies": { "es-errors": "^1.3.0", "get-intrinsic": "^1.2.6", "has-tostringtag": "^1.0.2", "hasown": "^2.0.2" } }, "sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA=="],
++
+     "esbuild": ["esbuild@0.28.1", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.28.1", "@esbuild/android-arm": "0.28.1", "@esbuild/android-arm64": "0.28.1", "@esbuild/android-x64": "0.28.1", "@esbuild/darwin-arm64": "0.28.1", "@esbuild/darwin-x64": "0.28.1", "@esbuild/freebsd-arm64": "0.28.1", "@esbuild/freebsd-x64": "0.28.1", "@esbuild/linux-arm": "0.28.1", "@esbuild/linux-arm64": "0.28.1", "@esbuild/linux-ia32": "0.28.1", "@esbuild/linux-loong64": "0.28.1", "@esbuild/linux-mips64el": "0.28.1", "@esbuild/linux-ppc64": "0.28.1", "@esbuild/linux-riscv64": "0.28.1", "@esbuild/linux-s390x": "0.28.1", "@esbuild/linux-x64": "0.28.1", "@esbuild/netbsd-arm64": "0.28.1", "@esbuild/netbsd-x64": "0.28.1", "@esbuild/openbsd-arm64": "0.28.1", "@esbuild/openbsd-x64": "0.28.1", "@esbuild/openharmony-arm64": "0.28.1", "@esbuild/sunos-x64": "0.28.1", "@esbuild/win32-arm64": "0.28.1", "@esbuild/win32-ia32": "0.28.1", "@esbuild/win32-x64": "0.28.1" }, "bin": "bin/esbuild" }, "sha512-HrJrvZv5ayxBzPfwphOoNzkzOIIlifzk0KJrGK2c8R4+LKpMtpYLQeUdjnwjWv/LZlkH2laZk+4w78pi99D4Vw=="],
+ 
+     "estree-walker": ["estree-walker@3.0.3", "", { "dependencies": { "@types/estree": "^1.0.0" } }, "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g=="],
+ 
++    "event-target-shim": ["event-target-shim@5.0.1", "", {}, "sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ=="],
++
+     "expect-type": ["expect-type@1.4.0", "", {}, "sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA=="],
+ 
+     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" } }, "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg=="],
+ 
++    "form-data": ["form-data@4.0.6", "", { "dependencies": { "asynckit": "^0.4.0", "combined-stream": "^1.0.8", "es-set-tostringtag": "^2.1.0", "hasown": "^2.0.4", "mime-types": "^2.1.35" } }, "sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ=="],
++
++    "form-data-encoder": ["form-data-encoder@1.7.2", "", {}, "sha512-qfqtYan3rxrnCk1VYaA4H+Ms9xdpPqvLZa6xmMgFvhO32x7/3J/ExcTd6qpxM0vH2GdMI+poehyBZvqfMTto8A=="],
++
++    "formdata-node": ["formdata-node@4.4.1", "", { "dependencies": { "node-domexception": "1.0.0", "web-streams-polyfill": "4.0.0-beta.3" } }, "sha512-0iirZp3uVDjVGt9p49aTaqjk84TrglENEDuqfdlZQ1roC9CWlPk6Avf8EEnZNcAqPonwkG35x4n3ww/1THYAeQ=="],
++
+     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
+ 
++    "function-bind": ["function-bind@1.1.2", "", {}, "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=="],
++
++    "get-intrinsic": ["get-intrinsic@1.3.0", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.2", "es-define-property": "^1.0.1", "es-errors": "^1.3.0", "es-object-atoms": "^1.1.1", "function-bind": "^1.1.2", "get-proto": "^1.0.1", "gopd": "^1.2.0", "has-symbols": "^1.1.0", "hasown": "^2.0.2", "math-intrinsics": "^1.1.0" } }, "sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ=="],
++
++    "get-proto": ["get-proto@1.0.1", "", { "dependencies": { "dunder-proto": "^1.0.1", "es-object-atoms": "^1.0.0" } }, "sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g=="],
++
++    "gopd": ["gopd@1.2.0", "", {}, "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg=="],
++
++    "has-symbols": ["has-symbols@1.1.0", "", {}, "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ=="],
++
++    "has-tostringtag": ["has-tostringtag@1.0.2", "", { "dependencies": { "has-symbols": "^1.0.3" } }, "sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw=="],
++
++    "hasown": ["hasown@2.0.4", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A=="],
++
++    "humanize-ms": ["humanize-ms@1.2.1", "", { "dependencies": { "ms": "^2.0.0" } }, "sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ=="],
++
+     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
+ 
++    "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
++
++    "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
++
++    "mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
++
++    "ms": ["ms@2.1.3", "", {}, "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="],
++
+     "nanoid": ["nanoid@3.3.16", "", { "bin": "bin/nanoid.cjs" }, "sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q=="],
+ 
++    "node-domexception": ["node-domexception@1.0.0", "", {}, "sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ=="],
++
++    "node-fetch": ["node-fetch@2.7.0", "", { "dependencies": { "whatwg-url": "^5.0.0" }, "peerDependencies": { "encoding": "^0.1.0" }, "optionalPeers": ["encoding"] }, "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="],
++
+     "obug": ["obug@2.1.4", "", {}, "sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA=="],
+ 
++    "openai": ["openai@4.104.0", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" }, "peerDependencies": { "ws": "^8.18.0", "zod": "^3.23.8" }, "optionalPeers": ["ws", "zod"], "bin": { "openai": "bin/cli" } }, "sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA=="],
++
+     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
+ 
+     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
+@@ -190,6 +255,8 @@
+ 
+     "tinyrainbow": ["tinyrainbow@3.1.1", "", {}, "sha512-yau8yJdTt989Mm0Bd/236QnzEiPf2xLLTqUZRUJOo/3CB078LSwzei343DgtJVmfJKJE3TMINY1u42SQsP6mXw=="],
+ 
++    "tr46": ["tr46@0.0.3", "", {}, "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="],
++
+     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+ 
+     "undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+@@ -198,6 +265,16 @@
+ 
+     "vitest": ["vitest@4.1.10", "", { "dependencies": { "@vitest/expect": "4.1.10", "@vitest/mocker": "4.1.10", "@vitest/pretty-format": "4.1.10", "@vitest/runner": "4.1.10", "@vitest/snapshot": "4.1.10", "@vitest/spy": "4.1.10", "@vitest/utils": "4.1.10", "es-module-lexer": "^2.0.0", "expect-type": "^1.3.0", "magic-string": "^0.30.21", "obug": "^2.1.1", "pathe": "^2.0.3", "picomatch": "^4.0.3", "std-env": "^4.0.0-rc.1", "tinybench": "^2.9.0", "tinyexec": "^1.0.2", "tinyglobby": "^0.2.15", "tinyrainbow": "^3.1.0", "vite": "^6.0.0 || ^7.0.0 || ^8.0.0", "why-is-node-running": "^2.3.0" }, "peerDependencies": { "@edge-runtime/vm": "*", "@opentelemetry/api": "^1.9.0", "@types/node": "^20.0.0 || ^22.0.0 || >=24.0.0", "@vitest/browser-playwright": "4.1.10", "@vitest/browser-preview": "4.1.10", "@vitest/browser-webdriverio": "4.1.10", "@vitest/coverage-istanbul": "4.1.10", "@vitest/coverage-v8": "4.1.10", "@vitest/ui": "4.1.10", "happy-dom": "*", "jsdom": "*" }, "optionalPeers": ["@edge-runtime/vm", "@opentelemetry/api", "@types/node", "@vitest/browser-playwright", "@vitest/browser-preview", "@vitest/browser-webdriverio", "@vitest/coverage-istanbul", "@vitest/coverage-v8", "@vitest/ui", "happy-dom", "jsdom"], "bin": { "vitest": "./vitest.mjs" } }, "sha512-R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw=="],
+ 
++    "web-streams-polyfill": ["web-streams-polyfill@4.0.0-beta.3", "", {}, "sha512-QW95TCTaHmsYfHDybGMwO5IJIM93I/6vTRk+daHTWFPhwh+C8Cg7j7XyKrwrj8Ib6vYXe0ocYNrmzY4xAAN6ug=="],
++
++    "webidl-conversions": ["webidl-conversions@3.0.1", "", {}, "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="],
++
++    "whatwg-url": ["whatwg-url@5.0.0", "", { "dependencies": { "tr46": "~0.0.3", "webidl-conversions": "^3.0.0" } }, "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw=="],
++
+     "why-is-node-running": ["why-is-node-running@2.3.0", "", { "dependencies": { "siginfo": "^2.0.0", "stackback": "0.0.2" }, "bin": "cli.js" }, "sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w=="],
++
++    "openai/@types/node": ["@types/node@18.19.130", "", { "dependencies": { "undici-types": "~5.26.4" } }, "sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg=="],
++
++    "openai/@types/node/undici-types": ["undici-types@5.26.5", "", {}, "sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA=="],
+   }
+ }
+diff --git a/docker/Dockerfile.backend b/docker/Dockerfile.backend
+old mode 100644
+new mode 100755
+diff --git a/docker/Dockerfile.frontend b/docker/Dockerfile.frontend
+old mode 100644
+new mode 100755
+diff --git a/docker/docker-compose.yml b/docker/docker-compose.yml
+old mode 100644
+new mode 100755
+diff --git a/mvp-ui/index.html b/mvp-ui/index.html
+index 3d29493..44c00e7 100755
+--- a/mvp-ui/index.html
++++ b/mvp-ui/index.html
+@@ -1620,6 +1620,12 @@ async function loadInsightsForProject() {
+   if (!insightCurrentProjectId) return;
+ 
+   try {
++    // Applying the DEFERRED -> REVISITABLE transitions is a state change,
++    // so it is an explicit POST — the GET below is read-only.
++    try {
++      await apiPost('/api/project/' + insightCurrentProjectId + '/insights/revisit', {});
++    } catch (e) { /* non-critical: list still renders */ }
++
+     const [countsRes, listRes, revisitableRes] = await Promise.all([
+       apiGet('/api/project/' + insightCurrentProjectId + '/insights/counts'),
+       apiGet('/api/project/' + insightCurrentProjectId + '/insights'),
+diff --git a/src/__tests__/core/core-regressions.test.ts b/src/__tests__/core/core-regressions.test.ts
+new file mode 100644
+index 0000000..fa1761e
+--- /dev/null
++++ b/src/__tests__/core/core-regressions.test.ts
+@@ -0,0 +1,254 @@
++/**
++ * Regression tests for the logical defects found in the AIS core audit.
++ *
++ * Every test here failed before the fix.
++ */
++import { describe, it, expect, vi } from 'vitest';
++
++import { ContextEngine } from '../../core/context/context-engine.js';
++import { InProcessEventBus } from '../../core/events/event-bus.js';
++import { ContextPolicyManager } from '../../core/context/policies.js';
++import { ContextSource, ContextPriority } from '../../core/context/types.js';
++import type { ContextSourceProvider } from '../../core/context/context-builder.js';
++import { WorkflowScheduler } from '../../core/workflow/scheduler.js';
++import { StageType } from '../../core/workflow/types.js';
++import { KnowledgeVersionManager } from '../../core/knowledge/versioning.js';
++import { CostEngine } from '../../core/ai-provider/cost-engine.js';
++import type { ModelDescriptor, ModelId, ProviderId } from '../../core/ai-provider/types.js';
++
++function makeProvider(
++  source: ContextSource,
++  entries: Array<{ key: string; value: unknown; priority?: ContextPriority }>,
++): ContextSourceProvider {
++  return {
++    source,
++    async getEntries() {
++      return entries.map(e => ({
++        key: e.key,
++        value: e.value,
++        source,
++        priority: e.priority ?? ContextPriority.Normal,
++        createdAt: new Date().toISOString(),
++      }));
++    },
++  };
++}
++
++describe('core regression: context policies', () => {
++  it('evicts the LOW priority entry first', () => {
++    const policy = new ContextPolicyManager({
++      maxContextSizeBytes: 10_000,
++      maxEntriesPerContext: 100,
++      defaultTtlMs: 3_600_000,
++      compressionThresholdBytes: 1024 * 1024,
++      enablePriority: true,
++      enableExpiration: false,
++      enableMerge: true,
++      mergeConflictStrategy: 'priority-wins',
++    });
++
++    const now = Date.now();
++    const context: any = {
++      contextId: 'ctx',
++      version: '1',
++      createdAt: new Date(now).toISOString(),
++      updatedAt: new Date(now).toISOString(),
++      entries: new Map([
++        ['crit', { key: 'crit', value: 1, source: ContextSource.Runtime, priority: 100, createdAt: new Date(now).toISOString() }],
++        ['low', { key: 'low', value: 2, source: ContextSource.Runtime, priority: 10, createdAt: new Date(now - 60_000).toISOString() }],
++      ]),
++      sizeBytes: 100,
++    };
++
++    expect(policy.selectEvictionCandidate(context)).toBe('low');
++  });
++
++  it('evicts the older entry when priorities are equal', () => {
++    const policy = new ContextPolicyManager({
++      maxContextSizeBytes: 10_000,
++      maxEntriesPerContext: 100,
++      defaultTtlMs: 3_600_000,
++      compressionThresholdBytes: 1024 * 1024,
++      enablePriority: true,
++      enableExpiration: false,
++      enableMerge: true,
++      mergeConflictStrategy: 'priority-wins',
++    });
++
++    const now = Date.now();
++    const context: any = {
++      contextId: 'ctx',
++      version: '1',
++      createdAt: new Date(now).toISOString(),
++      updatedAt: new Date(now).toISOString(),
++      entries: new Map([
++        ['new', { key: 'new', value: 1, source: ContextSource.Runtime, priority: 50, createdAt: new Date(now).toISOString() }],
++        ['old', { key: 'old', value: 2, source: ContextSource.Runtime, priority: 50, createdAt: new Date(now - 60_000).toISOString() }],
++      ]),
++      sizeBytes: 100,
++    };
++
++    expect(policy.selectEvictionCandidate(context)).toBe('old');
++  });
++});
++
++describe('core regression: context engine updates', () => {
++  it('does not add an entry that the policy rejects', async () => {
++    const engine = new ContextEngine({
++      policyConfig: { maxContextSizeBytes: 200 },
++    });
++    engine.registerProvider(makeProvider(ContextSource.Runtime, []));
++    const ctx = await engine.buildContext();
++
++    const updated = await engine.updateContext(ctx.contextId, [
++      {
++        key: 'big',
++        value: 'x'.repeat(500),
++        source: ContextSource.Runtime,
++        priority: ContextPriority.Normal,
++        createdAt: new Date().toISOString(),
++      },
++    ]);
++
++    expect(updated.entries.has('big')).toBe(false);
++  });
++
++  it('does not overwrite an existing key when merging is disabled', async () => {
++    const engine = new ContextEngine({ policyConfig: { enableMerge: false } });
++    engine.registerProvider(makeProvider(ContextSource.Runtime, [{ key: 'a', value: 'v1' }]));
++    const ctx = await engine.buildContext();
++
++    const updated = await engine.updateContext(ctx.contextId, [
++      {
++        key: 'a',
++        value: 'v2',
++        source: ContextSource.Runtime,
++        priority: ContextPriority.Normal,
++        createdAt: new Date().toISOString(),
++      },
++    ]);
++
++    expect(updated.entries.get('a')!.value).toBe('v1');
++  });
++
++  it('keeps the entry added in the same call (does not evict itself)', async () => {
++    const engine = new ContextEngine({ policyConfig: { maxEntriesPerContext: 1 } });
++    engine.registerProvider(makeProvider(ContextSource.Runtime, []));
++    const ctx = await engine.buildContext();
++
++    const updated = await engine.updateContext(ctx.contextId, [
++      {
++        key: 'a',
++        value: 'v',
++        source: ContextSource.Runtime,
++        priority: ContextPriority.Normal,
++        createdAt: new Date().toISOString(),
++      },
++    ]);
++
++    expect(updated.entries.has('a')).toBe(true);
++  });
++
++  it('reports source and priority of the evicted entry', async () => {
++    const bus = new InProcessEventBus();
++    const engine = new ContextEngine({
++      eventBus: bus,
++      policyConfig: { maxEntriesPerContext: 1 },
++    });
++    engine.registerProvider(
++      makeProvider(ContextSource.User, [{ key: 'old', value: 'v', priority: ContextPriority.High }]),
++    );
++    const ctx = await engine.buildContext();
++
++    await engine.updateContext(ctx.contextId, [
++      {
++        key: 'new',
++        value: 'v2',
++        source: ContextSource.Runtime,
++        priority: ContextPriority.Normal,
++        createdAt: new Date().toISOString(),
++      },
++    ]);
++
++    const evicted = bus.getLog().find(e => e.eventType === 'ContextEntryEvicted');
++    expect(evicted).toBeDefined();
++    expect(evicted!.payload.source).toBe(ContextSource.User);
++    expect(evicted!.payload.priority).toBe(ContextPriority.High);
++  });
++});
++
++describe('core regression: workflow scheduler', () => {
++  it('warns about stages that cannot be scheduled', () => {
++    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
++    const scheduler = new WorkflowScheduler();
++
++    const base = {
++      name: 'stage',
++      description: '',
++      type: StageType.Sequential,
++      handler: 'h',
++      inputMapping: {},
++      outputMapping: {},
++      timeoutMs: 1000,
++      retryPolicy: {} as any,
++      compensation: {} as any,
++      conditions: [],
++      metadata: {},
++    };
++
++    const plans = scheduler.schedule([
++      { ...base, id: 'a' as any, dependencies: ['b' as any] },
++      { ...base, id: 'b' as any, dependencies: ['a' as any] },
++      { ...base, id: 'c' as any, dependencies: ['missing' as any] },
++      { ...base, id: 'd' as any, dependencies: [] },
++    ]);
++
++    expect(plans.map(p => p.stageId)).toEqual(['d']);
++    expect(scheduler.unscheduledStages.map(s => s.stageId).sort()).toEqual(['a', 'b', 'c']);
++    expect(scheduler.unscheduledStages.find(s => s.stageId === 'c')!.missingDependencies).toEqual(['missing']);
++    expect(warn).toHaveBeenCalled();
++    warn.mockRestore();
++  });
++});
++
++describe('core regression: knowledge versioning', () => {
++  it('paginates history newest first', async () => {
++    const manager = new KnowledgeVersionManager();
++    const itemId = 'item-1' as any;
++    for (let i = 0; i < 5; i++) {
++      await manager.createVersion(itemId, `v${i}`, {}, 'active' as any);
++    }
++
++    const page1 = await manager.getHistory(itemId, 0, 2);
++    const page2 = await manager.getHistory(itemId, 2, 2);
++    const all = await manager.getVersions(itemId);
++
++    expect(page1.versions.map(v => v.revision)).toEqual([5, 4]);
++    expect(page2.versions.map(v => v.revision)).toEqual([3, 2]);
++    expect(all.map(v => v.revision)).toEqual([5, 4, 3, 2, 1]);
++  });
++});
++
++describe('core regression: cost engine', () => {
++  it('fills byProvider and byModel', async () => {
++    const model = {
++      id: 'model-1' as ModelId,
++      providerId: 'openai' as ProviderId,
++      costProfile: { inputCostPer1kTokens: 1, outputCostPer1kTokens: 2, currency: 'USD' },
++    } as unknown as ModelDescriptor;
++
++    const engine = new CostEngine(
++      { defaultCurrency: 'USD' } as any,
++      { getModel: async () => model } as any,
++    );
++
++    const detail = await engine.calculate(1000, 1000, 'model-1' as ModelId);
++    await engine.record(detail);
++
++    const report = await engine.getReport();
++    expect(Object.keys(report.byProvider)).toEqual(['openai']);
++    expect(Object.keys(report.byModel)).toEqual(['model-1']);
++    expect(await engine.getByProvider('openai')).toBeCloseTo(3);
++    expect(await engine.getByModel('model-1')).toBeCloseTo(3);
++  });
++});
+diff --git a/src/__tests__/knowledge/knowledge-versioning.test.ts b/src/__tests__/knowledge/knowledge-versioning.test.ts
+index f186e7c..65752e4 100755
+--- a/src/__tests__/knowledge/knowledge-versioning.test.ts
++++ b/src/__tests__/knowledge/knowledge-versioning.test.ts
+@@ -354,9 +354,10 @@ describe('KnowledgeVersionManager', () => {
+         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
+       }
+       const result = await manager.getHistory(makeItemId(), 2);
+-      // offset=2, limit=20 → skips first 2 (rev 1,2), returns [3,4,5] reversed = [5,4,3]
++      // History is newest first (like getVersions): [5,4,3,2,1],
++      // offset=2 skips [5,4] → [3,2,1]
+       expect(result.versions).toHaveLength(3);
+-      expect(result.versions[0]!.revision).toBe(5);
++      expect(result.versions[0]!.revision).toBe(3);
+       expect(result.total).toBe(5);
+     });
+ 
+@@ -365,10 +366,10 @@ describe('KnowledgeVersionManager', () => {
+         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
+       }
+       const result = await manager.getHistory(makeItemId(), 0, 2);
+-      // Internal array is [rev1..rev5], slice(0,2)=[rev1,rev2], reversed=[rev2,rev1]
++      // Newest first: [5,4,3,2,1] → first page is [5,4]
+       expect(result.versions).toHaveLength(2);
+-      expect(result.versions[0]!.revision).toBe(2);
+-      expect(result.versions[1]!.revision).toBe(1);
++      expect(result.versions[0]!.revision).toBe(5);
++      expect(result.versions[1]!.revision).toBe(4);
+       expect(result.total).toBe(5);
+     });
+ 
+@@ -377,10 +378,10 @@ describe('KnowledgeVersionManager', () => {
+         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
+       }
+       const result = await manager.getHistory(makeItemId(), 1, 2);
+-      // offset=1 → internal [rev1..rev5], slice(1,3)=[rev2,rev3], reversed=[rev3,rev2]
++      // Newest first: [5,4,3,2,1] → offset=1, limit=2 → [4,3]
+       expect(result.versions).toHaveLength(2);
+-      expect(result.versions[0]!.revision).toBe(3);
+-      expect(result.versions[1]!.revision).toBe(2);
++      expect(result.versions[0]!.revision).toBe(4);
++      expect(result.versions[1]!.revision).toBe(3);
+     });
+ 
+     it('handles offset beyond total gracefully', async () => {
+diff --git a/src/__tests__/mvp-ui/insight-regressions.test.ts b/src/__tests__/mvp-ui/insight-regressions.test.ts
+new file mode 100644
+index 0000000..4745882
+--- /dev/null
++++ b/src/__tests__/mvp-ui/insight-regressions.test.ts
+@@ -0,0 +1,122 @@
++/**
++ * Insight lifecycle — regression tests for bugs found in the insight flow.
++ *
++ * 1. "Отложить" (DEFER) from EVALUATING was rejected with 400.
++ * 2. A deferred insight became REVISITABLE immediately, because the context
++ *    snapshot contained project.updatedAt — which the decision itself changes.
++ * 3. A rejected insight silently returned to the queue as REVISITABLE.
++ * 4. GET /insights/revisitable mutated the project file on disk.
++ */
++
++import { describe, it, expect, beforeEach, afterEach } from 'vitest';
++import { ProjectStore } from '../../mvp-ui/project-store.js';
++import { InsightService } from '../../mvp-ui/insight-service.js';
++import { InsightStatus, GoalAlignment } from '../../mvp-ui/project-types.js';
++import { mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { resolve } from 'node:path';
++
++let tmpDir: string;
++let store: ProjectStore;
++let service: InsightService;
++let projectId: string;
++
++function evaluatedInsight(text = 'Test'): ReturnType<InsightService['createInsight']> {
++  const insight = service.createInsight({ projectId, text });
++  service.evaluateInsight({
++    projectId, insightId: insight.id,
++    relevance: 0.5, feasibility: 0.5,
++    goalAlignment: GoalAlignment.MEDIUM, rationale: 'test',
++  });
++  return insight;
++}
++
++beforeEach(() => {
++  tmpDir = mkdtempSync(resolve(tmpdir(), 'test-insight-reg-'));
++  store = new ProjectStore(tmpDir);
++  service = new InsightService(store);
++  projectId = store.getOrCreate('/test/project', 'test-project').id;
++});
++
++afterEach(() => {
++  rmSync(tmpDir, { recursive: true, force: true });
++});
++
++describe('insight regressions', () => {
++  it('allows DEFER from EVALUATING (the UI shows "Отложить" there)', () => {
++    const insight = evaluatedInsight();
++    const decided = service.decideInsight({
++      projectId, insightId: insight.id, decision: 'DEFER',
++      revisitCondition: 'When the API key is rotated',
++    });
++    expect(decided.status).toBe(InsightStatus.DEFERRED);
++    expect(decided.revisitCondition).toBe('When the API key is rotated');
++  });
++
++  it('does not make a deferred insight revisitable without a real context change', () => {
++    const insight = evaluatedInsight();
++    service.decideInsight({ projectId, insightId: insight.id, decision: 'DEFER' });
++
++    expect(service.checkRevisitability(projectId)).toHaveLength(0);
++    expect(store.getInsight(projectId, insight.id)!.status).toBe(InsightStatus.DEFERRED);
++  });
++
++  it('makes a deferred insight revisitable when the context really changes', () => {
++    const insight = evaluatedInsight();
++    service.decideInsight({ projectId, insightId: insight.id, decision: 'DEFER' });
++
++    store.addSession(projectId, {
++      sessionId: 'sess-1', projectPath: '/test/project',
++      createdAt: new Date().toISOString(), question: 'Q', answer: 'A',
++      claims: [], sources: [], findings: [],
++    });
++
++    const revisitable = service.checkRevisitability(projectId);
++    expect(revisitable).toHaveLength(1);
++    expect(revisitable[0].status).toBe(InsightStatus.REVISITABLE);
++  });
++
++  it('never returns a rejected insight to the queue', () => {
++    const insight = evaluatedInsight();
++    service.decideInsight({ projectId, insightId: insight.id, decision: 'REJECT' });
++
++    store.addSession(projectId, {
++      sessionId: 'sess-1', projectPath: '/test/project',
++      createdAt: new Date().toISOString(), question: 'Q', answer: 'A',
++      claims: [], sources: [], findings: [],
++    });
++
++    expect(service.checkRevisitability(projectId)).toHaveLength(0);
++    expect(store.getInsight(projectId, insight.id)!.status).toBe(InsightStatus.REJECTED);
++    expect(service.listRevisitableInsights(projectId)).toHaveLength(0);
++  });
++
++  it('reading the revisitable list does not write to disk', () => {
++    const insight = evaluatedInsight();
++    service.decideInsight({ projectId, insightId: insight.id, decision: 'DEFER' });
++
++    const projectFile = () => {
++      const files: string[] = [];
++      const walk = (dir: string) => {
++        for (const entry of readdirSync(dir)) {
++          const full = resolve(dir, entry);
++          if (statSync(full).isDirectory()) walk(full);
++          else files.push(full);
++        }
++      };
++      walk(tmpDir);
++      return files;
++    };
++
++    const before = projectFile().map((f) => ({ f, mtime: statSync(f).mtimeMs }));
++    service.listRevisitableInsights(projectId);
++    const after = projectFile().map((f) => ({ f, mtime: statSync(f).mtimeMs }));
++
++    expect(after.length).toBe(before.length);
++    for (const entry of after) {
++      const old = before.find((b) => b.f === entry.f);
++      expect(old).toBeDefined();
++      expect(entry.mtime).toBe(old!.mtime);
++    }
++  });
++});
+diff --git a/src/core/ai-provider/cost-engine.ts b/src/core/ai-provider/cost-engine.ts
+index 8883d68..bd48729 100755
+--- a/src/core/ai-provider/cost-engine.ts
++++ b/src/core/ai-provider/cost-engine.ts
+@@ -60,6 +60,8 @@ export class CostEngine implements ICostEngine {
+     const audioCost = 0;
+ 
+     return Object.freeze({
++      providerId: model?.providerId as unknown as string | undefined,
++      modelId: modelId as unknown as string,
+       inputCost,
+       outputCost,
+       cachedCost,
+@@ -71,7 +73,7 @@ export class CostEngine implements ICostEngine {
+     });
+   }
+ 
+-  async record(cost: CostDetail): Promise<void> {
++  async record(cost: CostDetail, providerId?: string, modelId?: string): Promise<void> {
+     this.totalInputCost += cost.inputCost;
+     this.totalOutputCost += cost.outputCost;
+     this.totalCachedCost += cost.cachedCost;
+@@ -86,6 +88,17 @@ export class CostEngine implements ICostEngine {
+     this.byType['image'] = (this.byType['image'] ?? 0) + cost.imageCost;
+     this.byType['audio'] = (this.byType['audio'] ?? 0) + cost.audioCost;
+ 
++    // Per-provider / per-model breakdown. It used to stay empty forever, so
++    // getByProvider()/getByModel() always returned 0.
++    const provider = providerId ?? cost.providerId;
++    const model = modelId ?? cost.modelId;
++    if (provider) {
++      this.byProvider[provider] = (this.byProvider[provider] ?? 0) + cost.totalCost;
++    }
++    if (model) {
++      this.byModel[model] = (this.byModel[model] ?? 0) + cost.totalCost;
++    }
++
+     this.publish(Object.freeze({
+       eventType: 'cost.recorded',
+       classification: EventClassification.Action,
+diff --git a/src/core/ai-provider/token-manager.ts b/src/core/ai-provider/token-manager.ts
+index ac4d549..c7b6f3f 100755
+--- a/src/core/ai-provider/token-manager.ts
++++ b/src/core/ai-provider/token-manager.ts
+@@ -80,6 +80,9 @@ export class TokenManager implements ITokenManager {
+   }
+ 
+   async record(usage: TokenCountResult): Promise<void> {
++    // The budget period used to never roll over on its own.
++    this.rollPeriodIfExpired();
++
+     const total = usage.totalTokens;
+     const projected = this.used + total;
+     const percentage = this.config.defaultBudget > 0 ? projected / this.config.defaultBudget : 0;
+@@ -158,7 +161,33 @@ export class TokenManager implements ITokenManager {
+     this.byProvider = {};
+     this.byModel = {};
+     this.warned = false;
+-    this.periodStart = new Date().toISOString();
++    this.startNewPeriod();
++  }
++
++  /** Start a new budget period (resets start/end timestamps). */
++  private startNewPeriod(): void {
++    const now = new Date();
++    this.periodStart = now.toISOString();
++    const end = new Date(now);
++    switch (this.config.period) {
++      case 'hourly': end.setHours(end.getHours() + 1); break;
++      case 'daily': end.setDate(end.getDate() + 1); break;
++      case 'weekly': end.setDate(end.getDate() + 7); break;
++      case 'monthly': end.setMonth(end.getMonth() + 1); break;
++    }
++    this.periodEnd = end.toISOString();
++  }
++
++  /** Roll the budget period over if it has expired. */
++  private rollPeriodIfExpired(): void {
++    if (Date.now() >= new Date(this.periodEnd).getTime()) {
++      this.startNewPeriod();
++      this.used = 0;
++      this.byType = { ...EMPTY_BY_TYPE };
++      this.byProvider = {};
++      this.byModel = {};
++      this.warned = false;
++    }
+   }
+ 
+   async getByType(type: TokenType): Promise<number> {
+diff --git a/src/core/ai-provider/types.ts b/src/core/ai-provider/types.ts
+index 6273219..5ef2b9f 100755
+--- a/src/core/ai-provider/types.ts
++++ b/src/core/ai-provider/types.ts
+@@ -403,6 +403,10 @@ export interface TokenUsageDetail {
+ 
+ /** Cost detail for a single execution */
+ export interface CostDetail {
++  /** Provider the cost is attributed to (optional for backwards compatibility). */
++  readonly providerId?: string;
++  /** Model the cost is attributed to (optional for backwards compatibility). */
++  readonly modelId?: string;
+   readonly inputCost: number;
+   readonly outputCost: number;
+   readonly cachedCost: number;
+diff --git a/src/core/cognitive/context-compression.ts b/src/core/cognitive/context-compression.ts
+index acd21d4..b40e4e2 100755
+--- a/src/core/cognitive/context-compression.ts
++++ b/src/core/cognitive/context-compression.ts
+@@ -127,12 +127,16 @@ export class ContextCompressionRuntime {
+     // Apply compression strategy
+     let compressedMessages: readonly PromptMessageEntry[];
+     let strategy: CompressionStrategy;
++    let summaryContent: string | undefined;
+ 
+     switch (this._config.strategy) {
+-      case CompressionStrategy.Summary:
+-        compressedMessages = this.summarizeCompress(messages, maxTokens);
++      case CompressionStrategy.Summary: {
++        const result = this.summarizeCompress(messages, maxTokens);
++        compressedMessages = result.messages;
++        summaryContent = result.droppedContent;
+         strategy = CompressionStrategy.Summary;
+         break;
++      }
+ 
+       case CompressionStrategy.Truncation:
+         compressedMessages = this.truncationCompress(messages, maxTokens);
+@@ -164,6 +168,7 @@ export class ContextCompressionRuntime {
+       originalTokens,
+       compressedTokens,
+       strategy,
++      summaryContent,
+     );
+ 
+     return {
+@@ -184,20 +189,41 @@ export class ContextCompressionRuntime {
+   /**
+    * Summary compression — keep recent messages, summarize older ones.
+    */
+-  private summarizeCompress(messages: readonly PromptMessageEntry[], maxTokens: number): PromptMessageEntry[] {
+-    const retentionCount = Math.min(
+-      Math.floor(messages.length * 0.3),
+-      this._config.summaryRetentionTurns,
++  private summarizeCompress(
++    messages: readonly PromptMessageEntry[],
++    maxTokens: number,
++  ): { messages: PromptMessageEntry[]; droppedContent: string } {
++    if (messages.length === 0) {
++      return { messages: [], droppedContent: '' };
++    }
++
++    // At least one message must survive, and never more than we have.
++    // retentionCount = 0 made `messages.slice(-0)` return the WHOLE history
++    // ("compressed" but nothing was compressed).
++    const retentionCount = Math.max(
++      1,
++      Math.min(
++        Math.floor(messages.length * 0.3),
++        this._config.summaryRetentionTurns,
++        messages.length,
++      ),
+     );
+     const recent = messages.slice(-retentionCount);
++    const dropped = messages.slice(0, messages.length - retentionCount);
+     const recentTokens = recent.reduce((sum, m) => sum + m.tokens, 0);
+ 
+-    if (recentTokens <= maxTokens) {
+-      return recent;
+-    }
++    const kept = recentTokens <= maxTokens
++      ? recent
++      : this.truncationCompress(recent, maxTokens);
++
++    // The dropped turns must not disappear silently — their text goes into
++    // the summary.
++    const droppedContent = dropped
++      .map((m) => `${m.role}: ${m.content}`)
++      .join('\n')
++      .slice(0, 4000);
+ 
+-    // If even recent exceeds, truncate
+-    return this.truncationCompress(recent, maxTokens);
++    return { messages: kept, droppedContent };
+   }
+ 
+   /**
+@@ -263,6 +289,7 @@ export class ContextCompressionRuntime {
+     originalTokens: number,
+     compressedTokens: number,
+     strategy: CompressionStrategy,
++    content?: string,
+   ): Summary {
+     const id: SummaryId = brandSummaryId(crypto.randomUUID());
+     const compressionRatio = originalTokens > 0
+@@ -278,7 +305,9 @@ export class ContextCompressionRuntime {
+       compressedTokens,
+       compressionRatio,
+       strategy,
+-      content: `Compressed from ${totalTurns} turns using ${strategy} strategy.`,
++      content: content && content.length > 0
++        ? content
++        : `Compressed from ${totalTurns} turns using ${strategy} strategy.`,
+       createdAt: new Date().toISOString(),
+       metadata: Object.freeze({}),
+     });
+diff --git a/src/core/context/context-engine.ts b/src/core/context/context-engine.ts
+index 3853695..e7eb3a9 100755
+--- a/src/core/context/context-engine.ts
++++ b/src/core/context/context-engine.ts
+@@ -110,7 +110,7 @@ export class ContextEngine {
+     executionId?: string,
+   ): Promise<UnifiedContext> {
+     // Evict expired entries from all existing contexts
+-    this.evictExpiredFromAll();
++    await this.evictExpiredFromAll();
+ 
+     const context = await this.builder.build(sessionId, executionId);
+ 
+@@ -166,37 +166,72 @@ export class ContextEngine {
+       updatedKeys: [],
+     };
+ 
++    // Keys added during THIS call are protected from eviction: the old code
++    // could evict the very entry it had just added.
++    const protectedKeys = new Set<string>();
++
++    // A view of the context without the protected keys — eviction candidates
++    // are chosen from it.
++    const evictionView = (): UnifiedContext => {
++      const view = new Map(newEntries);
++      for (const key of protectedKeys) view.delete(key);
++      return this.rebuildContext(context, view);
++    };
++
++    const evictOne = async (reason: string): Promise<boolean> => {
++      const view = evictionView();
++      if (!this.policyManager.shouldEvict(view)) return false;
++      const evictKey = this.policyManager.selectEvictionCandidate(view);
++      if (evictKey === null) return false;
++
++      // Read the entry BEFORE deleting it: the event used to report
++      // source=undefined, priority=undefined.
++      const evicted = newEntries.get(evictKey);
++      newEntries.delete(evictKey);
++      changes.removedKeys.push(evictKey);
++
++      await this.publishEvent<ContextEntryEvicted>({
++        ...createContextEventBase(
++          'ContextEntryEvicted',
++          EventClassification.Info,
++          context.contextId,
++        ),
++        eventType: 'ContextEntryEvicted',
++        classification: EventClassification.Info,
++        payload: {
++          contextId: context.contextId,
++          evictedKey: evictKey,
++          reason,
++          source: evicted?.source,
++          priority: evicted?.priority,
++          evictedAt: new Date().toISOString(),
++        },
++      });
++      return true;
++    };
++
+     for (const entry of entries) {
+       const existing = newEntries.get(entry.key);
+ 
+-      // Check policy before adding
+-      const checkResult = this.policyManager.canAddEntry(context, entry);
++      // Check policy before adding — against the context as it is NOW.
++      let checkResult = this.policyManager.canAddEntry(
++        this.rebuildContext(context, newEntries),
++        entry,
++      );
++
+       if (!checkResult.ok) {
+-        // If we can't add, try eviction first
+-        if (this.policyManager.shouldEvict(context)) {
+-          const evictKey = this.policyManager.selectEvictionCandidate(context);
+-          if (evictKey !== null) {
+-            newEntries.delete(evictKey);
+-            changes.removedKeys.push(evictKey);
+-
+-            await this.publishEvent<ContextEntryEvicted>({
+-              ...createContextEventBase(
+-                'ContextEntryEvicted',
+-                EventClassification.Info,
+-                context.contextId,
+-              ),
+-              eventType: 'ContextEntryEvicted',
+-              classification: EventClassification.Info,
+-              payload: {
+-                contextId: context.contextId,
+-                evictedKey: evictKey,
+-                reason: 'eviction-to-make-room',
+-                source: newEntries.get(evictKey)?.source,
+-                priority: newEntries.get(evictKey)?.priority,
+-                evictedAt: new Date().toISOString(),
+-              },
+-            });
+-          }
++        // If we can't add, try eviction first (and retry as long as it helps).
++        while (checkResult.ok === false && (await evictOne('eviction-to-make-room'))) {
++          checkResult = this.policyManager.canAddEntry(
++            this.rebuildContext(context, newEntries),
++            entry,
++          );
++        }
++
++        if (!checkResult.ok) {
++          // The policy said no and eviction did not help: the entry must NOT
++          // be added. Previously it was added anyway.
++          continue;
+         }
+       }
+ 
+@@ -207,6 +242,7 @@ export class ContextEngine {
+       } else {
+         newEntries.set(entry.key, entry);
+         changes.addedKeys.push(entry.key);
++        protectedKeys.add(entry.key);
+       }
+     }
+ 
+@@ -218,31 +254,9 @@ export class ContextEngine {
+       }
+     }
+ 
+-    // Run eviction if needed
+-    let tempContext: UnifiedContext = this.rebuildContext(context, newEntries);
+-    while (this.policyManager.shouldEvict(tempContext)) {
+-      const evictKey = this.policyManager.selectEvictionCandidate(tempContext);
+-      if (evictKey === null) break;
+-      newEntries.delete(evictKey);
+-      changes.removedKeys.push(evictKey);
+-
+-      await this.publishEvent<ContextEntryEvicted>({
+-        ...createContextEventBase(
+-          'ContextEntryEvicted',
+-          EventClassification.Info,
+-          context.contextId,
+-        ),
+-        eventType: 'ContextEntryEvicted',
+-        classification: EventClassification.Info,
+-        payload: {
+-          contextId: context.contextId,
+-          evictedKey: evictKey,
+-          reason: 'policy-eviction',
+-          evictedAt: new Date().toISOString(),
+-        },
+-      });
+-
+-      tempContext = this.rebuildContext(context, newEntries);
++    // Run eviction if needed (never touching the entries added in this call).
++    while (await evictOne('policy-eviction')) {
++      // keep evicting while the policy asks for it
+     }
+ 
+     // Rebuild the context with new entries
+diff --git a/src/core/context/policies.ts b/src/core/context/policies.ts
+index 64c7434..5e2f11b 100755
+--- a/src/core/context/policies.ts
++++ b/src/core/context/policies.ts
+@@ -114,14 +114,15 @@ export class ContextPolicyManager {
+       // Skip non-expirable entries if expiration is enabled
+       const isExpired = this.config.enableExpiration && this.checkExpiration(entry);
+ 
+-      // Priority score: lower priority = more evictable (subtract from base score)
+-      const priorityScore = this.config.enablePriority
+-        ? (1000 - entry.priority)
+-        : 500;
++      // Priority score: the lowest score wins, and low priority must mean
++      // "evict first" — so the score IS the priority (higher = keep).
++      const priorityScore = this.config.enablePriority ? entry.priority : 50;
+ 
+-      // Recency score: older = more evictable
++      // Recency score: older = more evictable. Age must therefore LOWER the
++      // score (it used to raise it, so fresh entries were evicted first).
+       const entryAge = now - new Date(entry.createdAt).getTime();
+-      const recencyScore = Math.max(0, entryAge / 1000); // seconds
++      const ageRatio = Math.min(Math.max(entryAge, 0) / 3_600_000, 1); // 0..1 per hour
++      const recencyScore = (1 - ageRatio) * 50;
+ 
+       // If expired, give maximum eviction priority
+       let score: number;
+diff --git a/src/core/knowledge/versioning.ts b/src/core/knowledge/versioning.ts
+index db8ea3a..095b12a 100755
+--- a/src/core/knowledge/versioning.ts
++++ b/src/core/knowledge/versioning.ts
+@@ -82,11 +82,9 @@ export class KnowledgeVersionManager {
+     if (trimmed.length > this.maxRevisions) {
+       const excess = trimmed.length - this.maxRevisions;
+       trimmed = trimmed.slice(excess);
+-      // Remove oldest from storage
+-      for (let i = 0; i < excess; i++) {
+-        const removed = updated[i]!;
+-        void this.removeVersionFromStorage(removed.id);
+-      }
++      // The oldest revisions must disappear from storage as well — the old
++      // code only trimmed the in-memory list, so the store kept growing.
++      await this.removeVersionsFromStorage(itemKey, trimmed);
+     }
+ 
+     this.versions.set(itemKey, trimmed);
+@@ -221,10 +219,15 @@ export class KnowledgeVersionManager {
+     const total = versions.length;
+     const safeOffset = Math.max(0, offset ?? 0);
+     const safeLimit = Math.max(1, limit ?? 20);
+-    const sliced = versions.slice(safeOffset, safeOffset + safeLimit);
++
++    // Versions are stored oldest first, but the history must be read like
++    // getVersions(): newest first. The old code sliced the ascending list and
++    // then reversed it, so the first page showed the OLDEST revisions.
++    const newestFirst = [...versions].reverse();
++    const sliced = newestFirst.slice(safeOffset, safeOffset + safeLimit);
+ 
+     return Object.freeze({
+-      versions: Object.freeze(sliced.reverse()),
++      versions: Object.freeze(sliced),
+       total,
+     });
+   }
+@@ -279,8 +282,35 @@ export class KnowledgeVersionManager {
+     }
+   }
+ 
+-  private async removeVersionFromStorage(versionId: KnowledgeVersionId): Promise<void> {
+-    // Storage adapter doesn't have per-version delete, no-op
+-    void versionId;
++  /**
++   * Rewrite the stored versions of an item, dropping the trimmed ones.
++   * The storage adapter has no per-version delete, so the item's versions are
++   * deleted and written back.
++   */
++  private async removeVersionsFromStorage(
++    itemId: string,
++    kept: readonly KnowledgeVersion[],
++  ): Promise<void> {
++    if (!this.storageAdapter) return;
++    try {
++      await this.storageAdapter.deleteVersions(itemId);
++      for (const version of kept) {
++        await this.storageAdapter.saveVersion({
++          id: version.id as unknown as string,
++          itemId: version.itemId as unknown as string,
++          revision: version.revision,
++          content: version.content,
++          metadata: version.metadata,
++          state: version.state,
++          parentId: version.parentId as unknown as string | undefined,
++          changelog: version.changelog,
++          createdAt: version.createdAt,
++        });
++      }
++    } catch (e) {
++      throw new KnowledgeStorageError(
++        `Failed to trim stored versions: ${(e as Error).message}`,
++      );
++    }
+   }
+ }
+diff --git a/src/core/memory/persistent-memory.ts b/src/core/memory/persistent-memory.ts
+index 6e6a6aa..6e5469c 100755
+--- a/src/core/memory/persistent-memory.ts
++++ b/src/core/memory/persistent-memory.ts
+@@ -350,6 +350,38 @@ export class PersistentMemory {
+       }
+     }
+ 
++    // Expired entries that are not in the cache were never touched: the old
++    // code only looked at the cache, so the storage kept them forever.
++    try {
++      const keys = await this.storage.keys();
++      for (const rawKey of keys) {
++        if (!rawKey.startsWith(STORAGE_PREFIX)) continue;
++        const key = rawKey.slice(STORAGE_PREFIX.length);
++        if (this.cache.has(key)) continue;
++
++        const data = await this.storage.load(rawKey);
++        if (data === null) continue;
++
++        let expiredEntry = false;
++        try {
++          expiredEntry = isExpired(this.deserializeEntry(data));
++        } catch {
++          // Corrupted entry: treat as expired and clean it up.
++          expiredEntry = true;
++        }
++        if (!expiredEntry) continue;
++
++        try {
++          await this.storage.delete(rawKey);
++          expired.push(key);
++        } catch {
++          // Non-fatal
++        }
++      }
++    } catch {
++      // Non-fatal: storage enumeration is best effort.
++    }
++
+     return expired.length;
+   }
+ 
+diff --git a/src/core/workflow/scheduler.ts b/src/core/workflow/scheduler.ts
+index c98cef1..2b096f2 100755
+--- a/src/core/workflow/scheduler.ts
++++ b/src/core/workflow/scheduler.ts
+@@ -22,7 +22,14 @@ import {
+   ExecutionMode as EM,
+ } from './types.js';
+ 
++export interface UnscheduledStage {
++  readonly stageId: StageId;
++  readonly missingDependencies: readonly StageId[];
++}
++
+ export class WorkflowScheduler {
++  private _unscheduled: readonly UnscheduledStage[] = [];
++
+   /**
+    * Generate a schedule plan from a list of stage definitions.
+    * Analyzes dependencies and stage types to determine execution order.
+@@ -92,9 +99,34 @@ export class WorkflowScheduler {
+       group++;
+     }
+ 
++    // Stages that never became ready (cyclic dependencies or a dependency
++    // that does not exist) used to be dropped silently — the workflow then
++    // ran incomplete and the caller had no idea.
++    const unscheduled = stages.filter(s => !completed.has(s.id));
++    this._unscheduled = unscheduled.map(s => ({
++      stageId: s.id,
++      missingDependencies: s.dependencies.filter(d => !stageMap.has(d)),
++    }));
++
++    if (this._unscheduled.length > 0) {
++      console.warn(
++        `[WorkflowScheduler] ${this._unscheduled.length} stage(s) could not be scheduled: ` +
++        this._unscheduled
++          .map(u => `${u.stageId}${u.missingDependencies.length > 0
++            ? ` (unknown dependency: ${u.missingDependencies.join(', ')})`
++            : ' (cyclic dependency)'}`)
++          .join('; '),
++      );
++    }
++
+     return plans;
+   }
+ 
++  /** Stages that could not be scheduled in the last call to schedule(). */
++  get unscheduledStages(): readonly UnscheduledStage[] {
++    return this._unscheduled;
++  }
++
+   /**
+    * Get stages that can run in parallel (same group, no inter-dependencies).
+    */
+diff --git a/src/mvp-ui/http-adapter.ts b/src/mvp-ui/http-adapter.ts
+index 05dc7dd..3437f39 100644
+--- a/src/mvp-ui/http-adapter.ts
++++ b/src/mvp-ui/http-adapter.ts
+@@ -270,12 +270,18 @@ export class HttpAdapter {
+           return;
+         }
+ 
+-        // GET /api/project/:id/insights/revisitable
++        // GET /api/project/:id/insights/revisitable (read-only)
+         if (method === 'GET' && projectSub === 'insights/revisitable') {
+           this.handleGetRevisitableInsights(projectId, res);
+           return;
+         }
+ 
++        // POST /api/project/:id/insights/revisit (applies the transitions)
++        if (method === 'POST' && projectSub === 'insights/revisit') {
++          this.handleRevisitInsights(projectId, res);
++          return;
++        }
++
+         // POST /api/project/:id/insights (create)
+         if (method === 'POST' && projectSub === 'insights') {
+           const body = await this.readBody(req);
+@@ -670,13 +676,24 @@ export class HttpAdapter {
+     }
+   }
+ 
+-  /** GET /api/project/:id/insights/revisitable */
++  /** GET /api/project/:id/insights/revisitable — read-only, never mutates state */
+   private handleGetRevisitableInsights(projectId: string, res: ServerResponse): void {
+     if (!this.insightService) { this.sendError(res, 503, 'Insight service not available'); return; }
+-    const revisitable = this.insightService.checkRevisitability(projectId);
++    const revisitable = this.insightService.listRevisitableInsights(projectId);
+     this.sendJson(res, 200, { projectId, revisitable });
+   }
+ 
++  /** POST /api/project/:id/insights/revisit — apply DEFERRED -> REVISITABLE transitions */
++  private handleRevisitInsights(projectId: string, res: ServerResponse): void {
++    if (!this.insightService) { this.sendError(res, 503, 'Insight service not available'); return; }
++    try {
++      const revisitable = this.insightService.checkRevisitability(projectId);
++      this.sendJson(res, 200, { projectId, revisitable });
++    } catch (err) {
++      this.sendError(res, 400, err instanceof Error ? err.message : 'Bad request');
++    }
++  }
++
+   /** GET /api/project/:id/insights/counts */
+   private handleGetInsightCounts(projectId: string, res: ServerResponse): void {
+     if (!this.insightService) { this.sendError(res, 503, 'Insight service not available'); return; }
+diff --git a/src/mvp-ui/insight-service.ts b/src/mvp-ui/insight-service.ts
+index d96d0dd..8994d1f 100644
+--- a/src/mvp-ui/insight-service.ts
++++ b/src/mvp-ui/insight-service.ts
+@@ -64,10 +64,13 @@ export interface UpdateInsightStatusParams {
+ 
+ const VALID_TRANSITIONS: Readonly<Record<string, readonly InsightStatus[]>> = {
+   [InsightStatus.NEW]: [InsightStatus.EVALUATING, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
+-  [InsightStatus.EVALUATING]: [InsightStatus.ACTIVE, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
++  // EVALUATING -> DEFERRED is allowed: the UI shows the decision block
++  // (including "Отложить") exactly for insights in EVALUATING.
++  [InsightStatus.EVALUATING]: [InsightStatus.ACTIVE, InsightStatus.DEFERRED, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
+   [InsightStatus.ACTIVE]: [InsightStatus.DEFERRED, InsightStatus.REJECTED, InsightStatus.TESTING, InsightStatus.INVALIDATED],
+   [InsightStatus.DEFERRED]: [InsightStatus.REVISITABLE, InsightStatus.ACTIVE, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
+-  [InsightStatus.REJECTED]: [InsightStatus.REVISITABLE, InsightStatus.INVALIDATED],
++  // A rejected insight stays rejected — it never silently returns to the queue.
++  [InsightStatus.REJECTED]: [InsightStatus.INVALIDATED],
+   [InsightStatus.TESTING]: [InsightStatus.VALIDATED, InsightStatus.INVALIDATED],
+   [InsightStatus.VALIDATED]: [InsightStatus.IMPLEMENTED, InsightStatus.INVALIDATED],
+   [InsightStatus.IMPLEMENTED]: [InsightStatus.INVALIDATED],
+@@ -82,10 +85,12 @@ const VALID_TRANSITIONS: Readonly<Record<string, readonly InsightStatus[]>> = {
+ function buildContextSnapshot(store: ProjectStore, projectId: string): Record<string, unknown> {
+   const project = store.findById(projectId);
+   if (!project) return {};
++  // Only counts are used: project.updatedAt changes on every write (including
++  // the insight's own decision), so including it made every deferred insight
++  // look "context changed" right away.
+   return {
+     sessionCount: project.sessions.length,
+     insightCount: project.insights.length,
+-    updatedAt: project.updatedAt,
+   };
+ }
+ 
+@@ -185,6 +190,10 @@ export class InsightService {
+       userDecision: params.decision,
+       decisionAt: now,
+       revisitCondition: params.revisitCondition ? sanitizeSecrets(params.revisitCondition.substring(0, 1000)) : undefined,
++      // The revisit baseline is the context at the moment of the decision.
++      contextSnapshot: targetStatus === InsightStatus.DEFERRED
++        ? buildContextSnapshot(this.store, params.projectId)
++        : insight.contextSnapshot,
+       history: [...insight.history, newHistory],
+     };
+ 
+@@ -215,7 +224,20 @@ export class InsightService {
+     return updated;
+   }
+ 
+-  /** Check for revisitable insights (context changed since deferral). */
++  /**
++   * Read-only view of the insights that can be revisited (already transitioned
++   * to REVISITABLE). Never writes to the store — a GET must not mutate state.
++   */
++  listRevisitableInsights(projectId: string): PersistedInsight[] {
++    const project = this.store.findById(projectId);
++    if (!project) return [];
++    return project.insights.filter((i) => i.status === InsightStatus.REVISITABLE);
++  }
++
++  /**
++   * Apply the DEFERRED -> REVISITABLE transitions for insights whose context
++   * changed. This mutates the store and is therefore exposed via POST only.
++   */
+   checkRevisitability(projectId: string): PersistedInsight[] {
+     const project = this.store.findById(projectId);
+     if (!project) return [];
+@@ -223,7 +245,8 @@ export class InsightService {
+     const revisitable: PersistedInsight[] = [];
+ 
+     for (const insight of project.insights) {
+-      if (insight.status !== InsightStatus.DEFERRED && insight.status !== InsightStatus.REJECTED) continue;
++      // Only deferred insights are reviewed — a rejected insight is final.
++      if (insight.status !== InsightStatus.DEFERRED) continue;
+       if (!insight.contextSnapshot) continue;
+       if (hasContextChanged(insight.contextSnapshot, currentSnapshot)) {
+         const now = new Date().toISOString();
+diff --git a/vitest.config.ts b/vitest.config.ts
+old mode 100644
+new mode 100755

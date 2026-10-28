@@ -64,10 +64,13 @@ export interface UpdateInsightStatusParams {
 
 const VALID_TRANSITIONS: Readonly<Record<string, readonly InsightStatus[]>> = {
   [InsightStatus.NEW]: [InsightStatus.EVALUATING, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
-  [InsightStatus.EVALUATING]: [InsightStatus.ACTIVE, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
+  // EVALUATING -> DEFERRED is allowed: the UI shows the decision block
+  // (including "Отложить") exactly for insights in EVALUATING.
+  [InsightStatus.EVALUATING]: [InsightStatus.ACTIVE, InsightStatus.DEFERRED, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
   [InsightStatus.ACTIVE]: [InsightStatus.DEFERRED, InsightStatus.REJECTED, InsightStatus.TESTING, InsightStatus.INVALIDATED],
   [InsightStatus.DEFERRED]: [InsightStatus.REVISITABLE, InsightStatus.ACTIVE, InsightStatus.REJECTED, InsightStatus.INVALIDATED],
-  [InsightStatus.REJECTED]: [InsightStatus.REVISITABLE, InsightStatus.INVALIDATED],
+  // A rejected insight stays rejected — it never silently returns to the queue.
+  [InsightStatus.REJECTED]: [InsightStatus.INVALIDATED],
   [InsightStatus.TESTING]: [InsightStatus.VALIDATED, InsightStatus.INVALIDATED],
   [InsightStatus.VALIDATED]: [InsightStatus.IMPLEMENTED, InsightStatus.INVALIDATED],
   [InsightStatus.IMPLEMENTED]: [InsightStatus.INVALIDATED],
@@ -82,10 +85,12 @@ const VALID_TRANSITIONS: Readonly<Record<string, readonly InsightStatus[]>> = {
 function buildContextSnapshot(store: ProjectStore, projectId: string): Record<string, unknown> {
   const project = store.findById(projectId);
   if (!project) return {};
+  // Only counts are used: project.updatedAt changes on every write (including
+  // the insight's own decision), so including it made every deferred insight
+  // look "context changed" right away.
   return {
     sessionCount: project.sessions.length,
     insightCount: project.insights.length,
-    updatedAt: project.updatedAt,
   };
 }
 
@@ -185,6 +190,10 @@ export class InsightService {
       userDecision: params.decision,
       decisionAt: now,
       revisitCondition: params.revisitCondition ? sanitizeSecrets(params.revisitCondition.substring(0, 1000)) : undefined,
+      // The revisit baseline is the context at the moment of the decision.
+      contextSnapshot: targetStatus === InsightStatus.DEFERRED
+        ? buildContextSnapshot(this.store, params.projectId)
+        : insight.contextSnapshot,
       history: [...insight.history, newHistory],
     };
 
@@ -215,7 +224,20 @@ export class InsightService {
     return updated;
   }
 
-  /** Check for revisitable insights (context changed since deferral). */
+  /**
+   * Read-only view of the insights that can be revisited (already transitioned
+   * to REVISITABLE). Never writes to the store — a GET must not mutate state.
+   */
+  listRevisitableInsights(projectId: string): PersistedInsight[] {
+    const project = this.store.findById(projectId);
+    if (!project) return [];
+    return project.insights.filter((i) => i.status === InsightStatus.REVISITABLE);
+  }
+
+  /**
+   * Apply the DEFERRED -> REVISITABLE transitions for insights whose context
+   * changed. This mutates the store and is therefore exposed via POST only.
+   */
   checkRevisitability(projectId: string): PersistedInsight[] {
     const project = this.store.findById(projectId);
     if (!project) return [];
@@ -223,7 +245,8 @@ export class InsightService {
     const revisitable: PersistedInsight[] = [];
 
     for (const insight of project.insights) {
-      if (insight.status !== InsightStatus.DEFERRED && insight.status !== InsightStatus.REJECTED) continue;
+      // Only deferred insights are reviewed — a rejected insight is final.
+      if (insight.status !== InsightStatus.DEFERRED) continue;
       if (!insight.contextSnapshot) continue;
       if (hasContextChanged(insight.contextSnapshot, currentSnapshot)) {
         const now = new Date().toISOString();

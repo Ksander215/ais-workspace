@@ -127,12 +127,16 @@ export class ContextCompressionRuntime {
     // Apply compression strategy
     let compressedMessages: readonly PromptMessageEntry[];
     let strategy: CompressionStrategy;
+    let summaryContent: string | undefined;
 
     switch (this._config.strategy) {
-      case CompressionStrategy.Summary:
-        compressedMessages = this.summarizeCompress(messages, maxTokens);
+      case CompressionStrategy.Summary: {
+        const result = this.summarizeCompress(messages, maxTokens);
+        compressedMessages = result.messages;
+        summaryContent = result.droppedContent;
         strategy = CompressionStrategy.Summary;
         break;
+      }
 
       case CompressionStrategy.Truncation:
         compressedMessages = this.truncationCompress(messages, maxTokens);
@@ -164,6 +168,7 @@ export class ContextCompressionRuntime {
       originalTokens,
       compressedTokens,
       strategy,
+      summaryContent,
     );
 
     return {
@@ -184,20 +189,41 @@ export class ContextCompressionRuntime {
   /**
    * Summary compression — keep recent messages, summarize older ones.
    */
-  private summarizeCompress(messages: readonly PromptMessageEntry[], maxTokens: number): PromptMessageEntry[] {
-    const retentionCount = Math.min(
-      Math.floor(messages.length * 0.3),
-      this._config.summaryRetentionTurns,
-    );
-    const recent = messages.slice(-retentionCount);
-    const recentTokens = recent.reduce((sum, m) => sum + m.tokens, 0);
-
-    if (recentTokens <= maxTokens) {
-      return recent;
+  private summarizeCompress(
+    messages: readonly PromptMessageEntry[],
+    maxTokens: number,
+  ): { messages: PromptMessageEntry[]; droppedContent: string } {
+    if (messages.length === 0) {
+      return { messages: [], droppedContent: '' };
     }
 
-    // If even recent exceeds, truncate
-    return this.truncationCompress(recent, maxTokens);
+    // At least one message must survive, and never more than we have.
+    // retentionCount = 0 made `messages.slice(-0)` return the WHOLE history
+    // ("compressed" but nothing was compressed).
+    const retentionCount = Math.max(
+      1,
+      Math.min(
+        Math.floor(messages.length * 0.3),
+        this._config.summaryRetentionTurns,
+        messages.length,
+      ),
+    );
+    const recent = messages.slice(-retentionCount);
+    const dropped = messages.slice(0, messages.length - retentionCount);
+    const recentTokens = recent.reduce((sum, m) => sum + m.tokens, 0);
+
+    const kept = recentTokens <= maxTokens
+      ? recent
+      : this.truncationCompress(recent, maxTokens);
+
+    // The dropped turns must not disappear silently — their text goes into
+    // the summary.
+    const droppedContent = dropped
+      .map((m) => `${m.role}: ${m.content}`)
+      .join('\n')
+      .slice(0, 4000);
+
+    return { messages: kept, droppedContent };
   }
 
   /**
@@ -263,6 +289,7 @@ export class ContextCompressionRuntime {
     originalTokens: number,
     compressedTokens: number,
     strategy: CompressionStrategy,
+    content?: string,
   ): Summary {
     const id: SummaryId = brandSummaryId(crypto.randomUUID());
     const compressionRatio = originalTokens > 0
@@ -278,7 +305,9 @@ export class ContextCompressionRuntime {
       compressedTokens,
       compressionRatio,
       strategy,
-      content: `Compressed from ${totalTurns} turns using ${strategy} strategy.`,
+      content: content && content.length > 0
+        ? content
+        : `Compressed from ${totalTurns} turns using ${strategy} strategy.`,
       createdAt: new Date().toISOString(),
       metadata: Object.freeze({}),
     });

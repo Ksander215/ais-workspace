@@ -350,6 +350,38 @@ export class PersistentMemory {
       }
     }
 
+    // Expired entries that are not in the cache were never touched: the old
+    // code only looked at the cache, so the storage kept them forever.
+    try {
+      const keys = await this.storage.keys();
+      for (const rawKey of keys) {
+        if (!rawKey.startsWith(STORAGE_PREFIX)) continue;
+        const key = rawKey.slice(STORAGE_PREFIX.length);
+        if (this.cache.has(key)) continue;
+
+        const data = await this.storage.load(rawKey);
+        if (data === null) continue;
+
+        let expiredEntry = false;
+        try {
+          expiredEntry = isExpired(this.deserializeEntry(data));
+        } catch {
+          // Corrupted entry: treat as expired and clean it up.
+          expiredEntry = true;
+        }
+        if (!expiredEntry) continue;
+
+        try {
+          await this.storage.delete(rawKey);
+          expired.push(key);
+        } catch {
+          // Non-fatal
+        }
+      }
+    } catch {
+      // Non-fatal: storage enumeration is best effort.
+    }
+
     return expired.length;
   }
 

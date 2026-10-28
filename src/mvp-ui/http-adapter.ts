@@ -270,9 +270,15 @@ export class HttpAdapter {
           return;
         }
 
-        // GET /api/project/:id/insights/revisitable
+        // GET /api/project/:id/insights/revisitable (read-only)
         if (method === 'GET' && projectSub === 'insights/revisitable') {
           this.handleGetRevisitableInsights(projectId, res);
+          return;
+        }
+
+        // POST /api/project/:id/insights/revisit (applies the transitions)
+        if (method === 'POST' && projectSub === 'insights/revisit') {
+          this.handleRevisitInsights(projectId, res);
           return;
         }
 
@@ -670,11 +676,22 @@ export class HttpAdapter {
     }
   }
 
-  /** GET /api/project/:id/insights/revisitable */
+  /** GET /api/project/:id/insights/revisitable — read-only, never mutates state */
   private handleGetRevisitableInsights(projectId: string, res: ServerResponse): void {
     if (!this.insightService) { this.sendError(res, 503, 'Insight service not available'); return; }
-    const revisitable = this.insightService.checkRevisitability(projectId);
+    const revisitable = this.insightService.listRevisitableInsights(projectId);
     this.sendJson(res, 200, { projectId, revisitable });
+  }
+
+  /** POST /api/project/:id/insights/revisit — apply DEFERRED -> REVISITABLE transitions */
+  private handleRevisitInsights(projectId: string, res: ServerResponse): void {
+    if (!this.insightService) { this.sendError(res, 503, 'Insight service not available'); return; }
+    try {
+      const revisitable = this.insightService.checkRevisitability(projectId);
+      this.sendJson(res, 200, { projectId, revisitable });
+    } catch (err) {
+      this.sendError(res, 400, err instanceof Error ? err.message : 'Bad request');
+    }
   }
 
   /** GET /api/project/:id/insights/counts */

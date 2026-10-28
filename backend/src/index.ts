@@ -25,7 +25,7 @@ import { verifyTool } from "./plugins/runtime";
 import { ALL_MANIFESTS } from "./plugins/manifests";
 
 const app = express();
-const PORT = parseInt(process.env.SIP_PORT || "3001", 10);
+const PORT = parseInt(process.env.SIP_PORT || process.env.PORT || "3001", 10);
 const CORS_ORIGIN = process.env.SIP_CORS_ORIGIN || "https://sec-scanner.pro";
 
 // ─── Middleware ────────────────────────────────────────────────────────────

@@ -80,6 +80,9 @@ export class TokenManager implements ITokenManager {
   }
 
   async record(usage: TokenCountResult): Promise<void> {
+    // The budget period used to never roll over on its own.
+    this.rollPeriodIfExpired();
+
     const total = usage.totalTokens;
     const projected = this.used + total;
     const percentage = this.config.defaultBudget > 0 ? projected / this.config.defaultBudget : 0;
@@ -158,7 +161,33 @@ export class TokenManager implements ITokenManager {
     this.byProvider = {};
     this.byModel = {};
     this.warned = false;
-    this.periodStart = new Date().toISOString();
+    this.startNewPeriod();
+  }
+
+  /** Start a new budget period (resets start/end timestamps). */
+  private startNewPeriod(): void {
+    const now = new Date();
+    this.periodStart = now.toISOString();
+    const end = new Date(now);
+    switch (this.config.period) {
+      case 'hourly': end.setHours(end.getHours() + 1); break;
+      case 'daily': end.setDate(end.getDate() + 1); break;
+      case 'weekly': end.setDate(end.getDate() + 7); break;
+      case 'monthly': end.setMonth(end.getMonth() + 1); break;
+    }
+    this.periodEnd = end.toISOString();
+  }
+
+  /** Roll the budget period over if it has expired. */
+  private rollPeriodIfExpired(): void {
+    if (Date.now() >= new Date(this.periodEnd).getTime()) {
+      this.startNewPeriod();
+      this.used = 0;
+      this.byType = { ...EMPTY_BY_TYPE };
+      this.byProvider = {};
+      this.byModel = {};
+      this.warned = false;
+    }
   }
 
   async getByType(type: TokenType): Promise<number> {

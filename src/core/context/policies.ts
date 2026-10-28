@@ -114,14 +114,15 @@ export class ContextPolicyManager {
       // Skip non-expirable entries if expiration is enabled
       const isExpired = this.config.enableExpiration && this.checkExpiration(entry);
 
-      // Priority score: lower priority = more evictable (subtract from base score)
-      const priorityScore = this.config.enablePriority
-        ? (1000 - entry.priority)
-        : 500;
+      // Priority score: the lowest score wins, and low priority must mean
+      // "evict first" — so the score IS the priority (higher = keep).
+      const priorityScore = this.config.enablePriority ? entry.priority : 50;
 
-      // Recency score: older = more evictable
+      // Recency score: older = more evictable. Age must therefore LOWER the
+      // score (it used to raise it, so fresh entries were evicted first).
       const entryAge = now - new Date(entry.createdAt).getTime();
-      const recencyScore = Math.max(0, entryAge / 1000); // seconds
+      const ageRatio = Math.min(Math.max(entryAge, 0) / 3_600_000, 1); // 0..1 per hour
+      const recencyScore = (1 - ageRatio) * 50;
 
       // If expired, give maximum eviction priority
       let score: number;

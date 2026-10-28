@@ -354,9 +354,10 @@ describe('KnowledgeVersionManager', () => {
         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
       }
       const result = await manager.getHistory(makeItemId(), 2);
-      // offset=2, limit=20 → skips first 2 (rev 1,2), returns [3,4,5] reversed = [5,4,3]
+      // History is newest first (like getVersions): [5,4,3,2,1],
+      // offset=2 skips [5,4] → [3,2,1]
       expect(result.versions).toHaveLength(3);
-      expect(result.versions[0]!.revision).toBe(5);
+      expect(result.versions[0]!.revision).toBe(3);
       expect(result.total).toBe(5);
     });
 
@@ -365,10 +366,10 @@ describe('KnowledgeVersionManager', () => {
         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
       }
       const result = await manager.getHistory(makeItemId(), 0, 2);
-      // Internal array is [rev1..rev5], slice(0,2)=[rev1,rev2], reversed=[rev2,rev1]
+      // Newest first: [5,4,3,2,1] → first page is [5,4]
       expect(result.versions).toHaveLength(2);
-      expect(result.versions[0]!.revision).toBe(2);
-      expect(result.versions[1]!.revision).toBe(1);
+      expect(result.versions[0]!.revision).toBe(5);
+      expect(result.versions[1]!.revision).toBe(4);
       expect(result.total).toBe(5);
     });
 
@@ -377,10 +378,10 @@ describe('KnowledgeVersionManager', () => {
         await manager.createVersion(makeItemId(), `v${i}`, BASE_META, BASE_STATE);
       }
       const result = await manager.getHistory(makeItemId(), 1, 2);
-      // offset=1 → internal [rev1..rev5], slice(1,3)=[rev2,rev3], reversed=[rev3,rev2]
+      // Newest first: [5,4,3,2,1] → offset=1, limit=2 → [4,3]
       expect(result.versions).toHaveLength(2);
-      expect(result.versions[0]!.revision).toBe(3);
-      expect(result.versions[1]!.revision).toBe(2);
+      expect(result.versions[0]!.revision).toBe(4);
+      expect(result.versions[1]!.revision).toBe(3);
     });
 
     it('handles offset beyond total gracefully', async () => {

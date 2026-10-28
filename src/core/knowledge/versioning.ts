@@ -82,11 +82,9 @@ export class KnowledgeVersionManager {
     if (trimmed.length > this.maxRevisions) {
       const excess = trimmed.length - this.maxRevisions;
       trimmed = trimmed.slice(excess);
-      // Remove oldest from storage
-      for (let i = 0; i < excess; i++) {
-        const removed = updated[i]!;
-        void this.removeVersionFromStorage(removed.id);
-      }
+      // The oldest revisions must disappear from storage as well — the old
+      // code only trimmed the in-memory list, so the store kept growing.
+      await this.removeVersionsFromStorage(itemKey, trimmed);
     }
 
     this.versions.set(itemKey, trimmed);
@@ -221,10 +219,15 @@ export class KnowledgeVersionManager {
     const total = versions.length;
     const safeOffset = Math.max(0, offset ?? 0);
     const safeLimit = Math.max(1, limit ?? 20);
-    const sliced = versions.slice(safeOffset, safeOffset + safeLimit);
+
+    // Versions are stored oldest first, but the history must be read like
+    // getVersions(): newest first. The old code sliced the ascending list and
+    // then reversed it, so the first page showed the OLDEST revisions.
+    const newestFirst = [...versions].reverse();
+    const sliced = newestFirst.slice(safeOffset, safeOffset + safeLimit);
 
     return Object.freeze({
-      versions: Object.freeze(sliced.reverse()),
+      versions: Object.freeze(sliced),
       total,
     });
   }
@@ -279,8 +282,35 @@ export class KnowledgeVersionManager {
     }
   }
 
-  private async removeVersionFromStorage(versionId: KnowledgeVersionId): Promise<void> {
-    // Storage adapter doesn't have per-version delete, no-op
-    void versionId;
+  /**
+   * Rewrite the stored versions of an item, dropping the trimmed ones.
+   * The storage adapter has no per-version delete, so the item's versions are
+   * deleted and written back.
+   */
+  private async removeVersionsFromStorage(
+    itemId: string,
+    kept: readonly KnowledgeVersion[],
+  ): Promise<void> {
+    if (!this.storageAdapter) return;
+    try {
+      await this.storageAdapter.deleteVersions(itemId);
+      for (const version of kept) {
+        await this.storageAdapter.saveVersion({
+          id: version.id as unknown as string,
+          itemId: version.itemId as unknown as string,
+          revision: version.revision,
+          content: version.content,
+          metadata: version.metadata,
+          state: version.state,
+          parentId: version.parentId as unknown as string | undefined,
+          changelog: version.changelog,
+          createdAt: version.createdAt,
+        });
+      }
+    } catch (e) {
+      throw new KnowledgeStorageError(
+        `Failed to trim stored versions: ${(e as Error).message}`,
+      );
+    }
   }
 }

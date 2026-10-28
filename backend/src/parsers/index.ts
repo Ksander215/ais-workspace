@@ -21,36 +21,42 @@ export const nmapParser: ToolParser = {
     const findings: Finding[] = [];
     let findingIdx = 0;
 
-    try {
-      // Try XML parse
-      const portRegex = /portid="(\d+)".*?<state\s+state="(\w+)".*?<service\s+name="([^"]*)"(?:\s+product="([^"]*)")?(?:\s+version="([^"]*)")?/g;
-      let match;
-      while ((match = portRegex.exec(rawOutput)) !== null) {
-        const [, port, state, service, product, version] = match;
-        if (state === "open") {
-          findingIdx++;
-          const svcDetail = [product, version].filter(Boolean).join(" ") || service;
-          findings.push({
-            id: `FND-NMAP-${String(findingIdx).padStart(3, "0")}`,
-            tool: "nmap",
-            asset,
-            severity: isHighRiskPort(parseInt(port)) ? "high" : "info",
-            title: `Open port ${port}/${service}${svcDetail !== service ? ` (${svcDetail})` : ""}`,
-            description: `Port ${port} is open running ${svcDetail}. ${isHighRiskPort(parseInt(port)) ? "This port is commonly targeted in attacks." : ""}`,
-            cvss: isHighRiskPort(parseInt(port)) ? 7.0 : 0.0,
-            evidence: `${port}/tcp open ${service} ${svcDetail}`,
-            recommendation: isHighRiskPort(parseInt(port))
-              ? `Restrict access to port ${port}. Use firewall rules to limit exposure. Consider moving ${service} to a non-standard port.`
-              : `Verify that port ${port} (${service}) needs to be publicly accessible.`,
-            references: [],
-            status: "open",
-            discoveredAt: new Date().toISOString(),
-            metadata: { port, service, product: product || "", version: version || "" },
-          });
-        }
+    // nmap -oX prints every element on its own line, so `.` never matches
+    // across tags — parse per <port> block instead.
+    const portRegex = /<port\b[^>]*portid="(\d+)"[^>]*>([\s\S]*?)<\/port>/g;
+    let match;
+    while ((match = portRegex.exec(rawOutput)) !== null) {
+      const [, port, body] = match;
+      const state = body.match(/<state[^>]*state="(\w+)"/)?.[1];
+      const service = body.match(/<service[^>]*name="([^"]*)"/)?.[1] || "unknown";
+      const product = body.match(/<service[^>]*product="([^"]*)"/)?.[1] || "";
+      const version = body.match(/<service[^>]*version="([^"]*)"/)?.[1] || "";
+      if (state === "open") {
+        findingIdx++;
+        const svcDetail = [product, version].filter(Boolean).join(" ") || service;
+        findings.push({
+          id: `FND-NMAP-${String(findingIdx).padStart(3, "0")}`,
+          tool: "nmap",
+          asset,
+          severity: isHighRiskPort(parseInt(port)) ? "high" : "info",
+          title: `Open port ${port}/${service}${svcDetail !== service ? ` (${svcDetail})` : ""}`,
+          description: `Port ${port} is open running ${svcDetail}. ${isHighRiskPort(parseInt(port)) ? "This port is commonly targeted in attacks." : ""}`,
+          cvss: isHighRiskPort(parseInt(port)) ? 7.0 : 0.0,
+          evidence: `${port}/tcp open ${service} ${svcDetail}`,
+          recommendation: isHighRiskPort(parseInt(port))
+            ? `Restrict access to port ${port}. Use firewall rules to limit exposure. Consider moving ${service} to a non-standard port.`
+            : `Verify that port ${port} (${service}) needs to be publicly accessible.`,
+          references: [],
+          status: "open",
+          discoveredAt: new Date().toISOString(),
+          metadata: { port, service, product: product || "", version: version || "" },
+        });
       }
-    } catch {
-      // Fallback: try text format
+    }
+
+    // XML output did not yield anything — fall back to plain-text nmap output.
+    // (Previously this fallback lived in a catch block that could never trigger.)
+    if (findings.length === 0) {
       const textRegex = /(\d+)\/(tcp|udp)\s+(\w+)\s+(\S+)(?:\s+(.+))?/g;
       let textMatch;
       while ((textMatch = textRegex.exec(rawOutput)) !== null) {
@@ -200,19 +206,22 @@ export const trivyParser: ToolParser = {
     try {
       const data = JSON.parse(rawOutput);
       const results = data.Results || [];
+      // Counter must span all results — a per-result index produced duplicate
+      // finding IDs (FND-TRIVY-001 twice) and merged distinct nodes in the graph.
+      let findingIdx = 0;
 
       results.forEach((result: Record<string, unknown>) => {
         const target = String(result.Target || asset);
         const vulns = (result.Vulnerabilities || []) as Record<string, unknown>[];
 
-        vulns.forEach((vuln: Record<string, unknown>, idx: number) => {
+        vulns.forEach((vuln: Record<string, unknown>) => {
           const severity = normalizeSeverity(String(vuln.Severity || "medium"));
           const cvssData = vuln.CVSS as Record<string, Record<string, Record<string, number>>> | undefined;
           const rawNvdScore = cvssData?.nvd?.V3Score;
           const nvdScore: number = typeof rawNvdScore === "number" ? rawNvdScore : severityToCvss(severity);
 
           findings.push({
-            id: `FND-TRIVY-${String(idx + 1).padStart(3, "0")}`,
+            id: `FND-TRIVY-${String(++findingIdx).padStart(3, "0")}`,
             tool: "trivy",
             asset: target,
             severity,
@@ -352,16 +361,18 @@ export const zapParser: ToolParser = {
       const data = JSON.parse(rawOutput);
       const sites = data.site || [];
 
+      let findingIdx = 0;
+
       sites.forEach((site: Record<string, unknown>) => {
         const alerts = (site.alerts || []) as Record<string, unknown>[];
 
-        alerts.forEach((alert: Record<string, unknown>, idx: number) => {
+        alerts.forEach((alert: Record<string, unknown>) => {
           const riskCode = String(alert.riskcode || "1");
           const severity = riskCodeToSeverity(riskCode);
           const instances = (alert.instances || []) as Record<string, unknown>[];
 
           findings.push({
-            id: `FND-ZAP-${String(idx + 1).padStart(3, "0")}`,
+            id: `FND-ZAP-${String(++findingIdx).padStart(3, "0")}`,
             tool: "owasp-zap",
             asset: String(site["@name"] || asset),
             severity,
@@ -459,6 +470,8 @@ const PARSERS: Record<string, ToolParser> = {
   nuclei: nucleiParser,
   trivy: trivyParser,
   semgrep: semgrepParser,
+  // Manifest/tool id is "owasp-zap"; keep "zap" as an alias for manifest.parser === "zap"
+  "owasp-zap": zapParser,
   zap: zapParser,
   nikto: niktoParser,
 };

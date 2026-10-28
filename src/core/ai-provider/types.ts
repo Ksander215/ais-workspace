@@ -403,6 +403,10 @@ export interface TokenUsageDetail {
 
 /** Cost detail for a single execution */
 export interface CostDetail {
+  /** Provider the cost is attributed to (optional for backwards compatibility). */
+  readonly providerId?: string;
+  /** Model the cost is attributed to (optional for backwards compatibility). */
+  readonly modelId?: string;
   readonly inputCost: number;
   readonly outputCost: number;
   readonly cachedCost: number;

@@ -186,12 +186,13 @@ export function exportAsMarkdown(content: ReportContent, type: ReportType, proje
 
 export function exportAsCSV(findings: Finding[]): string {
   const headers = ["ID", "Tool", "Asset", "Severity", "Title", "CVSS", "CWE", "CVE", "Description", "Recommendation", "Status"];
+  // Every cell must be quoted: a comma in the asset or a newline in the
+  // description used to break the row apart.
+  const cell = (value: string): string => `"${value.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
   const rows = findings.map((f) => [
-    f.id, f.tool, f.asset, f.severity, `"${f.title.replace(/"/g, '""')}"`,
-    String(f.cvss), f.cwe || "", f.cve || "",
-    `"${f.description.replace(/"/g, '""')}"`,
-    `"${f.recommendation.replace(/"/g, '""')}"`,
-    f.status,
+    cell(f.id), cell(f.tool), cell(f.asset), cell(f.severity), cell(f.title),
+    cell(String(f.cvss)), cell(f.cwe || ""), cell(f.cve || ""),
+    cell(f.description), cell(f.recommendation), cell(f.status),
   ].join(","));
   return [headers.join(","), ...rows].join("\n");
 }
@@ -201,11 +202,14 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
     critical: "#dc2626", high: "#d97706", medium: "#f59e0b", low: "#22c55e", info: "#06b6d4",
   };
 
+  const safeProject = escapeHtml(projectName);
+  const safeSummary = content.executiveSummary ? escapeHtml(content.executiveSummary) : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SIP Report — ${projectName}</title>
+  <title>SIP Report — ${safeProject}</title>
   <style>
     body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1a1a1a; }
     h1 { border-bottom: 2px solid #00d4ff; padding-bottom: 0.5rem; }
@@ -218,21 +222,21 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
 </head>
 <body>
   <h1>${type === "executive" ? "Executive" : type === "technical" ? "Technical" : "Compliance"} Report</h1>
-  <p><strong>Project:</strong> ${projectName}</p>
+  <p><strong>Project:</strong> ${safeProject}</p>
   <p><strong>Risk Score:</strong> <span class="risk-score">${content.riskScore}/100</span></p>
   <p><strong>Findings:</strong> ${content.findings.length}</p>
   <p><strong>Generated:</strong> ${new Date().toISOString()}</p>
 
-  ${content.executiveSummary ? `<h2>Executive Summary</h2><pre style="white-space: pre-wrap;">${content.executiveSummary}</pre>` : ""}
+  ${safeSummary ? `<h2>Executive Summary</h2><pre style="white-space: pre-wrap;">${safeSummary}</pre>` : ""}
 
   <h2>Findings</h2>
   ${content.findings.map((f) => `
     <div class="finding">
-      <h3>${f.id}: ${f.title} <span class="severity" style="background:${severityColors[f.severity]}">${f.severity.toUpperCase()}</span></h3>
-      <p><strong>Asset:</strong> ${f.asset} | <strong>CVSS:</strong> ${f.cvss} | <strong>Tool:</strong> ${f.tool}</p>
-      <p>${f.description}</p>
-      <p><strong>Recommendation:</strong> ${f.recommendation}</p>
-      ${f.evidence ? `<p><strong>Evidence:</strong> <code>${f.evidence}</code></p>` : ""}
+      <h3>${escapeHtml(f.id)}: ${escapeHtml(f.title)} <span class="severity" style="background:${severityColors[f.severity]}">${f.severity.toUpperCase()}</span></h3>
+      <p><strong>Asset:</strong> ${escapeHtml(f.asset)} | <strong>CVSS:</strong> ${f.cvss} | <strong>Tool:</strong> ${escapeHtml(f.tool)}</p>
+      <p>${escapeHtml(f.description)}</p>
+      <p><strong>Recommendation:</strong> ${escapeHtml(f.recommendation)}</p>
+      ${f.evidence ? `<p><strong>Evidence:</strong> <code>${escapeHtml(f.evidence)}</code></p>` : ""}
     </div>
   `).join("")}
 
@@ -241,4 +245,14 @@ export function exportAsHTML(content: ReportContent, type: ReportType, projectNa
   </footer>
 </body>
 </html>`;
+}
+
+/** Escape user/tool-controlled text before embedding it into HTML output. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

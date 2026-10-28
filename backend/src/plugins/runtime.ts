@@ -33,12 +33,12 @@ export interface RuntimeCallbacks {
 
 const activeProcesses = new Map<string, ChildProcess>();
 
-/** Kill a running process by scan ID + tool ID */
+/** Kill a running process (and its whole process group) by scan ID + tool ID */
 export function killProcess(scanId: string, toolId: string): boolean {
   const key = `${scanId}:${toolId}`;
   const proc = activeProcesses.get(key);
   if (proc) {
-    proc.kill("SIGTERM");
+    killProcessTree(proc);
     activeProcesses.delete(key);
     return true;
   }
@@ -50,7 +50,7 @@ export function killAllScanProcesses(scanId: string): number {
   let killed = 0;
   for (const [key, proc] of activeProcesses.entries()) {
     if (key.startsWith(`${scanId}:`)) {
-      proc.kill("SIGTERM");
+      killProcessTree(proc);
       activeProcesses.delete(key);
       killed++;
     }
@@ -58,20 +58,57 @@ export function killAllScanProcesses(scanId: string): number {
   return killed;
 }
 
+/**
+ * Commands run through a shell, so killing the shell alone leaves the real
+ * tool running. Kill the whole process group instead.
+ */
+function killProcessTree(proc: ChildProcess): void {
+  if (proc.pid === undefined) {
+    proc.kill("SIGTERM");
+    return;
+  }
+  try {
+    process.kill(-proc.pid, "SIGTERM");
+  } catch {
+    try {
+      proc.kill("SIGTERM");
+    } catch {
+      // process already gone
+    }
+  }
+}
+
 // ─── Build command from manifest + target ─────────────────────────────────
+
+/**
+ * Allowed characters for a scan target: hostnames, URLs, IPv4, paths.
+ * Everything else (shell metacharacters, whitespace, quotes) is rejected —
+ * the target ends up inside a shell command, so it must never be able to
+ * break out of it.
+ */
+const SAFE_TARGET_RE = /^[A-Za-z0-9._:/@\-]+$/;
+
+export function isSafeSourceValue(value: string): boolean {
+  return typeof value === "string" && value.length > 0 && value.length <= 2048 && SAFE_TARGET_RE.test(value);
+}
+
+/** Escape a target so it is safe to embed into a shell command line. */
+export function quoteTarget(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
 export function buildCommand(manifest: PluginManifest, sourceType: SourceType, sourceValue: string): string {
   let command = manifest.run.command;
 
-  // Replace {target} placeholder
-  command = command.replace(/\{target\}/g, sourceValue);
+  // Replace {target} placeholder — quoted to avoid shell injection
+  command = command.replace(/\{target\}/g, quoteTarget(sourceValue));
 
   // Tool-specific command adjustments based on source type
   if (manifest.id === "nmap") {
     // nmap needs a hostname/IP, not a git repo
     if (sourceType === "git" || sourceType === "folder") {
       // For code sources, try to extract domain from sourceValue or scan localhost
-      command = command.replace(sourceValue, "127.0.0.1");
+      command = command.replace(quoteTarget(sourceValue), "'127.0.0.1'");
     }
   } else if (manifest.id === "trivy") {
     // trivy fs for filesystem, trivy image for docker
@@ -93,7 +130,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
     }
     // Ensure URL has scheme
     if (!sourceValue.startsWith("http")) {
-      command = command.replace(sourceValue, `https://${sourceValue}`);
+      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
     }
   } else if (manifest.id === "owasp-zap") {
     // ZAP needs a URL
@@ -101,7 +138,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
       return "";
     }
     if (!sourceValue.startsWith("http")) {
-      command = command.replace(sourceValue, `https://${sourceValue}`);
+      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
     }
   } else if (manifest.id === "nikto") {
     // nikto needs a URL or host
@@ -109,7 +146,7 @@ export function buildCommand(manifest: PluginManifest, sourceType: SourceType, s
       return "";
     }
     if (!sourceValue.startsWith("http")) {
-      command = command.replace(sourceValue, `https://${sourceValue}`);
+      command = command.replace(quoteTarget(sourceValue), quoteTarget(`https://${sourceValue}`));
     }
   }
 
@@ -182,6 +219,7 @@ export async function executeTool(
       env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/root/go/bin` },
       timeout,
       shell: true,
+      detached: true,
     });
 
     const key = `${scanId}:${toolId}`;
@@ -276,6 +314,7 @@ export async function installTool(
       env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/root/go/bin` },
       timeout: 600000, // 10 min for install
       shell: true,
+      detached: true,
     });
 
     proc.stdout?.on("data", (data: Buffer) => {

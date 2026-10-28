@@ -17,6 +17,7 @@ import {
   deleteProject,
   getProjectScans,
 } from "../services/store";
+import type { Project } from "../types";
 
 export const projectsRouter = Router();
 
@@ -61,7 +62,20 @@ projectsRouter.put("/:id", (req: Request, res: Response) => {
     return;
   }
 
-  const updated = { ...project, ...req.body, id: project.id, createdAt: project.createdAt };
+  // Only the user-editable fields are accepted — a blind spread let the
+  // client overwrite securityScore, status, scans, findings and settings.
+  const body = (req.body || {}) as Partial<Project>;
+  const updated: Project = {
+    ...project,
+    name: typeof body.name === "string" ? body.name : project.name,
+    description: typeof body.description === "string" ? body.description : project.description,
+    settings: project.settings,
+    id: project.id,
+    createdAt: project.createdAt,
+  };
+  if (body.settings && typeof body.settings === "object") {
+    updated.settings = { ...project.settings, ...(body.settings as Project["settings"]) };
+  }
   saveProject(updated);
   res.json(updated);
 });

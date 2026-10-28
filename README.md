@@ -430,11 +430,11 @@ Full roadmap: [ROADMAP.md](./ROADMAP.md)
 
 If you're joining the project for the first time, read the documentation in this order:
 
-1. **[docs/HANDOFF.md](./docs/HANDOFF.md)** — Start here. Project overview, current state, next tasks.
-2. **[docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md)** — Live status of every module and component.
-3. **[docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md)** — Product philosophy and non-negotiable rules.
-4. **[docs/DEVELOPMENT_RULES.md](./docs/DEVELOPMENT_RULES.md)** — Mandatory development workflow and checks.
-5. **[docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md)** — What must pass before any task is "done".
+1. **[docs/product/mvp-definition.md](./docs/product/mvp-definition.md)** — Start here. Project overview, current state, next tasks.
+2. **[docs/product/audits/ais-repository-audit.md](./docs/product/audits/ais-repository-audit.md)** — Live status of every module and component.
+3. **[docs/product/product-principles.md](./docs/product/product-principles.md)** — Product philosophy and non-negotiable rules.
+4. **[CONTRIBUTING.md](./CONTRIBUTING.md)** — Mandatory development workflow and checks.
+5. **[docs/product/validation/reports/mvp-free-release-readiness-001.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md)** — What must pass before any task is "done".
 
 After reading these five documents, you can start development without needing any previous chat history.
 
@@ -445,28 +445,28 @@ After reading these five documents, you can start development without needing an
 ### Core (read first)
 | Document | Description |
 |---|---|
-| [docs/HANDOFF.md](./docs/HANDOFF.md) | **Start here** — project handoff, current state, next steps |
-| [docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md) | Live status of every module, debts, risks |
-| [docs/PRODUCT_VISION.md](./docs/PRODUCT_VISION.md) | Product vision and what we sell |
-| [docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md) | 11 non-negotiable product principles |
-| [docs/DEVELOPMENT_RULES.md](./docs/DEVELOPMENT_RULES.md) | Mandatory development rules and workflow |
-| [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md) | Release checklist — must pass before "done" |
+| [docs/product/mvp-definition.md](./docs/product/mvp-definition.md) | **Start here** — project handoff, current state, next steps |
+| [docs/product/audits/ais-repository-audit.md](./docs/product/audits/ais-repository-audit.md) | Live status of every module, debts, risks |
+| [docs/product/product-vision.md](./docs/product/product-vision.md) | Product vision and what we sell |
+| [docs/product/product-principles.md](./docs/product/product-principles.md) | 11 non-negotiable product principles |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Mandatory development rules and workflow |
+| [docs/product/validation/reports/mvp-free-release-readiness-001.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md) | Release checklist — must pass before "done" |
 
 ### Specifications
 | Document | Description |
 |---|---|
-| [docs/AIS_SPECIFICATION.md](./docs/AIS_SPECIFICATION.md) | Adaptive Intelligence System full spec |
-| [docs/UX_GUIDELINES.md](./docs/UX_GUIDELINES.md) | UX guidelines, colors, typography, animations |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture and data flow |
-| [docs/END_TO_END_CHECKLIST.md](./docs/END_TO_END_CHECKLIST.md) | E2E test scenarios for every page |
+| [SRC-001.000.md](./SRC-001.000.md) | Adaptive Intelligence System full spec |
+| [docs/product/validation/reports/ux-contract-findings-001.md](./docs/product/validation/reports/ux-contract-findings-001.md) | UX guidelines, colors, typography, animations |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture and data flow |
+| [docs/product/validation/reports/mvp-free-real-e2e-001.md](./docs/product/validation/reports/mvp-free-real-e2e-001.md) | E2E test scenarios for every page |
 
 ### Records
 | Document | Description |
 |---|---|
-| [docs/DECISIONS.md](./docs/DECISIONS.md) | Architecture Decision Records (ADR) |
-| [docs/GLOSSARY.md](./docs/GLOSSARY.md) | Project glossary and terminology |
-| [docs/ROADMAP.md](./docs/ROADMAP.md) | Strategic roadmap (roadmap) |
-| [docs/CHANGELOG_PRODUCT.md](./docs/CHANGELOG_PRODUCT.md) | User-visible changes only |
+| [docs/product/product-architecture-decisions.md](./docs/product/product-architecture-decisions.md) | Architecture Decision Records (ADR) |
+| [docs/product/capability-map.md](./docs/product/capability-map.md) | Capability map and terminology |
+| [docs/product/product-roadmap.md](./docs/product/product-roadmap.md) | Strategic roadmap (roadmap) |
+| [landing/CHANGELOG_PRODUCT.md](./landing/CHANGELOG_PRODUCT.md) | User-visible changes only |
 
 ### Technical
 
@@ -477,9 +477,9 @@ After reading these five documents, you can start development without needing an
 | [CHANGELOG.md](./CHANGELOG.md) | Version history |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
 | [SECURITY.md](./SECURITY.md) | Security policy |
-| [docs/api.md](./docs/api.md) | API reference |
-| [docs/deployment.md](./docs/deployment.md) | Deployment guide |
-| [docs/plugins.md](./docs/plugins.md) | Plugin development guide |
+| [backend/src/index.ts](./backend/src/index.ts) | API entry point and routes |
+| [docker/docker-compose.yml](./docker/docker-compose.yml) | Deployment guide |
+| [backend/src/plugins/manifests.ts](./backend/src/plugins/manifests.ts) | Plugin manifests (source of truth) |
 
 ## ⭐ Support the project
 
@@ -493,7 +493,7 @@ The **Sponsor** button on the repository page opens the Sec Scanner store. To be
 
 ### Contributing
 
-Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/REPOSITORY_GOVERNANCE.md](./docs/REPOSITORY_GOVERNANCE.md). Work that touches the AIS contour must state so explicitly; the release gate is described in [docs/RELEASE_CHECKLIST.md](./docs/RELEASE_CHECKLIST.md).
+Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/REPOSITORY_GOVERNANCE.md](./docs/REPOSITORY_GOVERNANCE.md). Work that touches the AIS contour must state so explicitly; the release gate is described in [docs/RELEASE_CHECKLIST.md](./docs/product/validation/reports/mvp-free-release-readiness-001.md).
 
 ---
 

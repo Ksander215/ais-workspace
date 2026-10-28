@@ -24,13 +24,38 @@ import type { Finding, ReportType } from "../types";
 
 export const analysisRouter = Router();
 
+/**
+ * Validate the findings array coming from the request body.
+ * An incomplete finding used to crash the services with a 500.
+ */
+function pickFindings(body: { findings?: unknown }): Finding[] | null {
+  if (body?.findings === undefined || body.findings === null) return null;
+  if (!Array.isArray(body.findings)) {
+    throw new Error("findings must be an array");
+  }
+  for (const f of body.findings as Finding[]) {
+    if (!f || typeof f.id !== "string" || typeof f.asset !== "string" ||
+        typeof f.title !== "string" || !Array.isArray(f.references)) {
+      throw new Error("each finding needs id, asset, title and references[]");
+    }
+  }
+  return body.findings as Finding[];
+}
+
+
+
 // ─── Build Knowledge Graph ────────────────────────────────────────────────
 
 analysisRouter.post("/knowledge-graph", (req: Request, res: Response) => {
-  const { findings } = req.body as { findings?: Finding[] };
-
-  // Use provided findings or latest from store
-  const data = findings || getLatestFindings();
+  let data: Finding[];
+  try {
+    const provided = pickFindings(req.body as { findings?: unknown });
+    // Use provided findings or latest from store
+    data = provided || getLatestFindings();
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
+    return;
+  }
   if (!data || data.length === 0) {
     res.json({ nodes: [], edges: [] });
     return;
@@ -56,9 +81,14 @@ analysisRouter.post("/knowledge-graph/:scanId", (req: Request, res: Response) =>
 // ─── Build Attack Paths ───────────────────────────────────────────────────
 
 analysisRouter.post("/attack-paths", (req: Request, res: Response) => {
-  const { findings } = req.body as { findings?: Finding[] };
-
-  const data = findings || getLatestFindings();
+  let data: Finding[];
+  try {
+    const provided = pickFindings(req.body as { findings?: unknown });
+    data = provided || getLatestFindings();
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
+    return;
+  }
   if (!data || data.length === 0) {
     res.json({ nodes: [], paths: [] });
     return;
@@ -84,9 +114,14 @@ analysisRouter.post("/attack-paths/:scanId", (req: Request, res: Response) => {
 // ─── Generate AI Recommendations ──────────────────────────────────────────
 
 analysisRouter.post("/recommendations", (req: Request, res: Response) => {
-  const { findings } = req.body as { findings?: Finding[] };
-
-  const data = findings || getLatestFindings();
+  let data: Finding[];
+  try {
+    const provided = pickFindings(req.body as { findings?: unknown });
+    data = provided || getLatestFindings();
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
+    return;
+  }
   if (!data || data.length === 0) {
     res.json([]);
     return;
@@ -112,7 +147,7 @@ analysisRouter.post("/recommendations/:scanId", (req: Request, res: Response) =>
 // ─── Generate Report ──────────────────────────────────────────────────────
 
 analysisRouter.post("/report", (req: Request, res: Response) => {
-  const { type, findings, riskScore, projectName, format } = req.body as {
+  const { type, riskScore, projectName, format } = req.body as {
     type?: ReportType;
     findings?: Finding[];
     riskScore?: number;
@@ -120,7 +155,14 @@ analysisRouter.post("/report", (req: Request, res: Response) => {
     format?: "json" | "sarif" | "markdown" | "csv" | "html";
   };
 
-  const data = findings || getLatestFindings();
+  let data: Finding[];
+  try {
+    const provided = pickFindings(req.body as { findings?: unknown });
+    data = provided || getLatestFindings();
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Bad request" });
+    return;
+  }
   const score = riskScore || 0;
   const name = projectName || "SIP Scan";
 

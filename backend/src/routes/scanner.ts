@@ -4,14 +4,15 @@
  * GET  /api/scans         — List scan results
  * GET  /api/scans/:id     — Get scan result
  * POST /api/scans/:id/cancel — Cancel a running scan
- * GET  /api/scans/stream/:id — SSE stream for scan progress
+ * POST /api/scans (Accept: text/event-stream) — live progress stream
  */
 
 import { Router, type Request, type Response } from "express";
 import { v4 as uuidv4 } from "uuid";
-import { executeScanPipeline, cancelScan, isScanActive } from "../services/scanner";
+import { executeScanPipeline, cancelScan } from "../services/scanner";
 import { saveScanResult, getScanResults, getScanResult, getProject } from "../services/store";
 import { MANIFESTS_BY_ID } from "../plugins/manifests";
+import { isSafeSourceValue } from "../plugins/runtime";
 import type { ScanConfig } from "../types";
 
 export const scannerRouter = Router();
@@ -22,8 +23,14 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
   const { projectId, projectName, sourceType, sourceValue, toolIds } = req.body as ScanConfig;
 
   // Validate
-  if (!sourceType || !sourceValue || !toolIds || toolIds.length === 0) {
+  if (!sourceType || !sourceValue || !Array.isArray(toolIds) || toolIds.length === 0) {
     res.status(400).json({ error: "Missing required fields: sourceType, sourceValue, toolIds" });
+    return;
+  }
+
+  const VALID_SOURCE_TYPES = ["git", "folder", "website", "api", "docker"];
+  if (!VALID_SOURCE_TYPES.includes(sourceType)) {
+    res.status(400).json({ error: `Invalid sourceType: ${VALID_SOURCE_TYPES.join(", ")}` });
     return;
   }
 
@@ -31,6 +38,15 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
   const validToolIds = toolIds.filter((id: string) => MANIFESTS_BY_ID[id]);
   if (validToolIds.length === 0) {
     res.status(400).json({ error: "No valid tool IDs provided" });
+    return;
+  }
+
+  // Validate target — it is embedded into a shell command, so only a safe
+  // character set (hostnames, URLs, paths) is accepted.
+  if (!isSafeSourceValue(sourceValue)) {
+    res.status(400).json({
+      error: "Invalid sourceValue: only letters, digits and . _ - : / @ are allowed",
+    });
     return;
   }
 
@@ -42,6 +58,27 @@ scannerRouter.post("/", async (req: Request, res: Response) => {
     sourceValue,
     toolIds: validToolIds,
   };
+
+  // Store a placeholder right away, so GET /api/scans/:id can report the
+  // running scan instead of answering 404 while the pipeline works.
+  const startedAt = new Date().toISOString();
+  saveScanResult({
+    id: scanId,
+    projectId: config.projectId,
+    projectName: config.projectName,
+    sourceType: config.sourceType,
+    sourceValue: config.sourceValue,
+    tools: config.toolIds,
+    status: "running",
+    startedAt,
+    completedAt: "",
+    findings: [],
+    riskScore: 0,
+    timeline: [],
+    stdout: [],
+    stderr: [],
+    exitCode: 0,
+  });
 
   // Check if request wants SSE stream
   const acceptSSE = req.headers.accept?.includes("text/event-stream");
@@ -136,26 +173,9 @@ scannerRouter.post("/:id/cancel", (req: Request, res: Response) => {
   }
 });
 
-// ─── SSE stream for scan progress ─────────────────────────────────────────
-
-scannerRouter.get("/stream/:id", (req: Request, res: Response) => {
-  if (!isScanActive(req.params.id)) {
-    res.status(404).json({ error: "No active scan with this ID" });
-    return;
-  }
-
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
-
-  // For now, just keep the connection open.
-  // The actual SSE events are sent during scan execution in the POST / handler.
-  // This endpoint exists for reconnecting to an ongoing scan.
-
-  req.on("close", () => {
-    // Client disconnected
-  });
-});
+// ─── Scan status ──────────────────────────────────────────────────────────
+//
+// There is no separate SSE endpoint for an already running scan: it never
+// emitted a single event, so clients had to poll GET /api/scans/:id instead.
+// The POST handler itself streams events when the client asks for
+// `Accept: text/event-stream`.

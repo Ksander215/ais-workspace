@@ -48,6 +48,7 @@ export async function executeScanPipeline(
   const allStdout: string[] = [];
   const allStderr: string[] = [];
   let overallExitCode = 0;
+  const failedTools: string[] = [];
 
   // Register active scan
   activeScans.set(scanId, { config, cancelled: false });
@@ -139,14 +140,15 @@ export async function executeScanPipeline(
       });
 
       allStdout.push(...stdoutLines);
-      if (result.exitCode !== 0 && result.exitCode !== -1) {
-        // Non-zero exit but not crash — may still have useful output
-      }
       if (result.error) {
         allStderr.push(`[${toolId}] ERROR: ${result.error}`);
       }
-      if (result.exitCode === -1) {
+      if (result.exitCode !== 0) {
+        // The tool ran and failed (127 = command not found, 1 = tool error).
+        // Silently treating this as success hid missing binaries in Docker.
+        allStderr.push(`[${toolId}] exited with code ${result.exitCode}`);
         overallExitCode = 1; // Mark as partially failed
+        failedTools.push(toolId);
       }
 
       // Parse tool output into Findings
@@ -170,6 +172,11 @@ export async function executeScanPipeline(
         detail: `${allFindings.filter(f => f.tool === toolId).length} findings`,
         tool: toolId,
       });
+    }
+
+    // Cancellation may have arrived while the last tool was running.
+    if (activeScans.get(scanId)?.cancelled) {
+      throw new Error("Scan cancelled");
     }
 
     // ─── Stage N+1: Correlate ─────────────────────────────────────────
@@ -216,7 +223,7 @@ export async function executeScanPipeline(
       sourceType: config.sourceType,
       sourceValue: config.sourceValue,
       tools: config.toolIds,
-      status: "completed",
+      status: failedTools.length > 0 ? "failed" : "completed",
       startedAt,
       completedAt: new Date().toISOString(),
       findings: uniqueFindings,
@@ -276,7 +283,7 @@ function deduplicateFindings(findings: Finding[]): Finding[] {
   });
 }
 
-function calculateRiskScore(findings: Finding[]): number {
+export function calculateRiskScore(findings: Finding[]): number {
   if (findings.length === 0) return 0;
 
   const severityWeights: Record<Severity, number> = {
@@ -287,11 +294,16 @@ function calculateRiskScore(findings: Finding[]): number {
     info: 1,
   };
 
+  // Informational findings (open ports etc.) carry no weight and must not
+  // dilute the score of real vulnerabilities.
+  const scored = findings.filter((f) => f.severity !== "info");
+  if (scored.length === 0) return 0;
+
   let totalWeight = 0;
-  for (const f of findings) {
+  for (const f of scored) {
     totalWeight += severityWeights[f.severity] * (f.cvss / 10);
   }
 
-  const maxPossible = findings.length * 30;
-  return Math.min(100, Math.round((totalWeight / maxPossible) * 100 * 2));
+  const maxPossible = scored.length * 30;
+  return Math.min(100, Math.round((totalWeight / maxPossible) * 100));
 }

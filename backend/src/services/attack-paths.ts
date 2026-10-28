@@ -103,9 +103,40 @@ export function buildAttackPaths(findings: Finding[]): AttackPathResult {
   return { nodes, paths };
 }
 
+/**
+ * Paths may reference infrastructure nodes (database / secrets / orchestrator)
+ * that only exist when a matching finding was detected. Make sure every node
+ * referenced by a path is really present in the graph.
+ */
+function ensureNode(
+  nodes: TopologyNode[],
+  id: string,
+  type: string,
+  label: string,
+  risk: number,
+  detail?: string,
+): void {
+  if (!nodes.some((n) => n.id === id)) {
+    nodes.push({ id, type, label, risk, detail });
+  }
+}
+
+
+/**
+ * Pick the application node that belongs to the finding's own asset.
+ * `nodes.find(n => n.type === "app")` always returned the first app, so a path
+ * for hostB was drawn through hostA while its description named hostB.
+ */
+function pickAppNode(finding: Finding, nodes: TopologyNode[]): TopologyNode | undefined {
+  const wanted = `app-${finding.asset.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  return nodes.find((n) => n.id === wanted) ?? nodes.find((n) => n.type === "app");
+}
+
 function buildSQLiPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
-  const appNode = nodes.find((n) => n.type === "app");
+  const appNode = pickAppNode(finding, nodes);
   const appId = appNode?.id || "app-default";
+  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
+  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
 
   return {
     name: finding.cve ? `${finding.cve} → Database Compromise` : "SQL Injection → Database Compromise",
@@ -121,8 +152,10 @@ function buildSQLiPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
 }
 
 function buildXSSPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
-  const appNode = nodes.find((n) => n.type === "app");
+  const appNode = pickAppNode(finding, nodes);
   const appId = appNode?.id || "app-default";
+  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
+  ensureNode(nodes, "secrets", "secrets", "Secrets Store", 95, "Vault / Config");
 
   return {
     name: finding.cve ? `${finding.cve} → Session Hijack` : "XSS → Session Hijack",
@@ -138,8 +171,11 @@ function buildXSSPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
 }
 
 function buildSecretsPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
-  const appNode = nodes.find((n) => n.type === "app");
+  const appNode = pickAppNode(finding, nodes);
   const appId = appNode?.id || "app-default";
+  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
+  ensureNode(nodes, "secrets", "secrets", "Secrets Store", 95, "Vault / Config");
+  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
 
   return {
     name: "Hardcoded Credentials → Full System Access",
@@ -156,6 +192,8 @@ function buildSecretsPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
 }
 
 function buildContainerEscapePath(finding: Finding, nodes: TopologyNode[]): AttackPath {
+  ensureNode(nodes, "orchestrator", "orchestrator", "K8s / Docker", 75, "Container orchestration");
+  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
   return {
     name: "Container Escape → Infrastructure Compromise",
     description: `Attack path exploiting ${finding.title} to escape the container and gain access to the host infrastructure.`,
@@ -170,9 +208,12 @@ function buildContainerEscapePath(finding: Finding, nodes: TopologyNode[]): Atta
 }
 
 function buildGenericPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
-  const appNode = nodes.find((n) => n.type === "app");
+  const appNode = pickAppNode(finding, nodes);
   const appId = appNode?.id || "app-default";
-  const lastNodeId = nodes[nodes.length - 1]?.id || "database";
+  ensureNode(nodes, appId, "app", appNode?.label || "Application", 70, "Scanned application");
+  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
+  let lastNodeId = nodes[nodes.length - 1]?.id || "database";
+  if (lastNodeId === appId) lastNodeId = "database";
 
   return {
     name: `${finding.title} → Asset Compromise`,
@@ -188,6 +229,7 @@ function buildGenericPath(finding: Finding, nodes: TopologyNode[]): AttackPath {
 }
 
 function buildDefaultPath(nodes: TopologyNode[]): AttackPath {
+  ensureNode(nodes, "database", "database", "Database", 85, "MySQL / PostgreSQL");
   return {
     name: "External → Application → Database",
     description: "Standard attack path from the internet through the application layer to the database.",
