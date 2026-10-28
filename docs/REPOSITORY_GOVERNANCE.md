@@ -43,7 +43,7 @@ CI evidence is engineering evidence. It does not substitute for E1–E5 user evi
 
 ## 4. AIS / SIP boundary
 
-AIS is the active validation target. SIP remains a separate runtime contour in the same repository. Changes must state which contour they affect.
+AIS is the main product and the active validation target. SIP was the original project and now lives inside AIS as an auxiliary product. They remain separate runtime contours, so changes must state which contour they affect.
 
 ## 5. Merge gate
 
