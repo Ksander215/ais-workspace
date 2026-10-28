@@ -88,6 +88,16 @@ export interface DiscoveryConfig {
 /**
  * Default discovery configuration.
  */
+/**
+ * Default discovery configuration.
+ *
+ * The exclusion list only removes vendor and build output. Project source
+ * directories (`packages`, `backend`, `src`, `apps`, …) are NOT excluded by
+ * default: in most repositories — every monorepo in particular — that is
+ * where the code lives, and excluding it leaves AIS with an empty graph.
+ * Deployments that need the previous, AIS-workspace-specific list can restore
+ * it with `AIS_DISCOVERY_EXCLUDE`.
+ */
 export const DefaultDiscoveryConfig: DiscoveryConfig = {
   rootPath: '.',
   excludePatterns: [
@@ -100,16 +110,6 @@ export const DefaultDiscoveryConfig: DiscoveryConfig = {
     '.cache',
     'frames',
     '__tests__',
-    // TASK-MVP-FREE-QUALITY-GATE-001: Exclude non-core project directories
-    // that pollute the ArchitectureGraph and cause false keyword matches
-    // in findRelevantNodes() (e.g., "evidence" matching landing.app.evidence).
-    'landing',
-    'backend',
-    'docs',
-    'scripts',
-    'plugins',
-    'packages',
-    'skills',
   ],
   maxDepth: 10,
   maxFiles: 10000,

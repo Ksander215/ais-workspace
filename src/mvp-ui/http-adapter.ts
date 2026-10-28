@@ -46,6 +46,7 @@ import { getAllDemoConfigs } from './demo-config.js';
 import type { ProjectService } from './project-service.js';
 import type { InsightService } from './insight-service.js';
 import { GoalAlignment } from './project-types.js';
+import { analyzeWithoutLlm } from './fallback-analysis.js';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -351,9 +352,12 @@ export class HttpAdapter {
 
     const parsed = this.parseObject(body);
     const url = this.requireString(parsed, 'url');
+    const ref = typeof parsed.ref === 'string' && parsed.ref.trim()
+      ? parsed.ref.trim()
+      : undefined;
 
     try {
-      const result = await this.githubResolver.resolve(url);
+      const result = await this.githubResolver.resolve(url, { ref });
       this.sendJson(res, 200, {
         cloneId: result.cloneId,
         projectPath: result.projectPath,
@@ -363,6 +367,8 @@ export class HttpAdapter {
       if (err instanceof GitHubResolverError) {
         const statusMap: Record<string, number> = {
           INVALID_URL: 400,
+          INVALID_REF: 400,
+          REF_NOT_FOUND: 404,
           REPO_NOT_FOUND: 404,
           REPO_PRIVATE: 403,
           REPO_TOO_LARGE: 413,
@@ -424,8 +430,43 @@ export class HttpAdapter {
 
   /** POST /api/session/:id/question — Submit a question. */
   private async handleSubmitQuestion(sessionId: string, body: unknown, res: ServerResponse): Promise<void> {
-    // §8, §13: DEMO != FAKE — refuse to return empty/mock results
+    // §8, §13: DEMO != FAKE — refuse to return empty/mock results.
+    // Opt-in exception for hosted demo instances: when no LLM key is
+    // configured, answer from the deterministic half of the pipeline (a real
+    // scan of the repository plus real source excerpts) and label it as
+    // code-derived facts, not generated prose. Off unless explicitly enabled.
     if (!this.realInferenceAvailable) {
+      if (process.env.AIS_ALLOW_CODE_DERIVED_FALLBACK === 'true') {
+        const parsedFb = this.parseObject(body);
+        const questionFb = this.requireString(parsedFb, 'question');
+        if (questionFb.trim().length === 0) {
+          this.sendError(res, 400, 'Question must not be empty');
+          return;
+        }
+        const ctxFb = this.service.getCaptureContext(sessionId);
+        if (!ctxFb) {
+          this.sendError(res, 404, 'Session not found');
+          return;
+        }
+        try {
+          const fb = await analyzeWithoutLlm(ctxFb.projectPath, questionFb.trim());
+          this.sendJson(res, 200, {
+            responseId: `fallback-${sessionId}`,
+            content: fb.content,
+            sources: fb.sources,
+            claims: fb.claims,
+            preparation: { message: 'No LLM key configured: answer built from the real code scan, not generated.' },
+          });
+          return;
+        } catch (fbErr) {
+          this.sendError(res, 503,
+            'Real inference is not available. ' +
+            'Set AIS_EXECUTION_REAL=true, AIS_REAL_LLM=true, and OPENAI_API_KEY environment variables. ' +
+            (fbErr instanceof Error ? fbErr.message : String(fbErr)),
+          );
+          return;
+        }
+      }
       this.sendError(res, 503,
         'Real inference is not available. ' +
         'Set AIS_EXECUTION_REAL=true, AIS_REAL_LLM=true, and OPENAI_API_KEY environment variables.',

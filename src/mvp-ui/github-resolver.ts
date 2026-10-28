@@ -68,6 +68,14 @@ export interface GitHubResolverConfig {
   readonly maxCloneTimeMs?: number;
 }
 
+export interface ResolveOptions {
+  /**
+   * Pinned commit SHA to check out instead of the branch HEAD.
+   * Enables reproducible validation runs against a frozen commit.
+   */
+  readonly ref?: string;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
@@ -82,10 +90,45 @@ const GENERATED_DIRS = new Set([
   'target', '.gradle', '.idea', '.vscode',
 ]);
 
-const DEFAULT_MAX_REPO_SIZE = 50 * 1024 * 1024; // 50MB
-const DEFAULT_MAX_FILE_COUNT = 10_000;
-const DEFAULT_MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
-const DEFAULT_MAX_CLONE_TIME = 60_000; // 60s
+/** Read a positive integer from the environment, falling back to a default. */
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * Limits resolved from the environment.
+ *
+ * Large real-world repositories (e.g. deepseek-ai/deepseek-harness: ~20k
+ * files, ~185MB) exceed the conservative defaults, so the ceilings are
+ * configurable without a code change.
+ */
+export function resolveRepoLimitsFromEnv(): {
+  maxRepoSizeBytes: number;
+  maxFileCount: number;
+  maxFileSizeBytes: number;
+  maxCloneTimeMs: number;
+} {
+  // Two names are accepted for each limit: the AIS_REPO_* form used by the
+  // CLI and the AIS_MAX_* form used by the hosted deployment.
+  const pick = (primary: string, alias: string, fallback: number): number =>
+    envInt(primary, envInt(alias, fallback));
+
+  // A byte-exact variant is also accepted for the size ceiling.
+  const sizeBytesRaw = process.env.AIS_MAX_REPO_SIZE_BYTES;
+  const sizeBytes = sizeBytesRaw && Number.isFinite(Number(sizeBytesRaw)) && Number(sizeBytesRaw) > 0
+    ? Number(sizeBytesRaw)
+    : pick('AIS_REPO_MAX_SIZE_MB', 'AIS_MAX_REPO_SIZE_MB', 50) * 1024 * 1024;
+
+  return {
+    maxRepoSizeBytes: sizeBytes,
+    maxFileCount: pick('AIS_REPO_MAX_FILES', 'AIS_MAX_FILE_COUNT', 10_000),
+    maxFileSizeBytes: pick('AIS_REPO_MAX_FILE_SIZE_MB', 'AIS_MAX_FILE_SIZE_MB', 1) * 1024 * 1024,
+    maxCloneTimeMs: pick('AIS_REPO_MAX_CLONE_MS', 'AIS_MAX_CLONE_TIME_MS', 60_000),
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // SERVICE
@@ -102,11 +145,12 @@ export class GitHubResolver {
   private readonly activeClones = new Map<string, string>();
 
   constructor(config?: GitHubResolverConfig) {
+    const envLimits = resolveRepoLimitsFromEnv();
     this.cloneRoot = config?.cloneRoot ?? join(tmpdir(), 'ais-repos');
-    this.maxRepoSizeBytes = config?.maxRepoSizeBytes ?? DEFAULT_MAX_REPO_SIZE;
-    this.maxFileCount = config?.maxFileCount ?? DEFAULT_MAX_FILE_COUNT;
-    this.maxFileSizeBytes = config?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE;
-    this.maxCloneTimeMs = config?.maxCloneTimeMs ?? DEFAULT_MAX_CLONE_TIME;
+    this.maxRepoSizeBytes = config?.maxRepoSizeBytes ?? envLimits.maxRepoSizeBytes;
+    this.maxFileCount = config?.maxFileCount ?? envLimits.maxFileCount;
+    this.maxFileSizeBytes = config?.maxFileSizeBytes ?? envLimits.maxFileSizeBytes;
+    this.maxCloneTimeMs = config?.maxCloneTimeMs ?? envLimits.maxCloneTimeMs;
 
     // Ensure clone root exists
     if (!existsSync(this.cloneRoot)) {
@@ -146,7 +190,7 @@ export class GitHubResolver {
    * Resolve a GitHub URL: validate, clone, enforce limits.
    * Returns clone info for session creation.
    */
-  async resolve(url: string): Promise<ResolveResult> {
+  async resolve(url: string, options?: ResolveOptions): Promise<ResolveResult> {
     // 1. Parse and validate URL (GHR-01)
     const { owner, name } = this.parseUrl(url);
 
@@ -192,6 +236,39 @@ export class GitHubResolver {
           `Try a smaller repository.`,
           'CLONE_TIMEOUT',
         );
+      }
+
+      // 3b. Check out a pinned commit (reproducible validation runs).
+      //     A shallow clone has only the branch HEAD, so the pinned commit is
+      //     fetched explicitly before checkout.
+      if (options?.ref) {
+        const sha = options.ref.trim();
+        if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
+          rmSync(cloneDir, { recursive: true, force: true });
+          throw new GitHubResolverError(
+            `Invalid ref: ${options.ref}. Expected a commit SHA.`,
+            'INVALID_REF',
+          );
+        }
+        try {
+          execSync(`git fetch --depth 1 --quiet origin ${sha}`, {
+            cwd: cloneDir,
+            timeout: this.maxCloneTimeMs,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+          });
+          execSync(`git checkout --quiet FETCH_HEAD`, {
+            cwd: cloneDir,
+            timeout: this.maxCloneTimeMs,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+        } catch {
+          rmSync(cloneDir, { recursive: true, force: true });
+          throw new GitHubResolverError(
+            `Could not check out ref ${sha}. The commit may not exist in this repository.`,
+            'REF_NOT_FOUND',
+          );
+        }
       }
 
       // 4. Get the commit hash (GHR-09)

@@ -57,6 +57,28 @@ export class DiscoveryPipelineService implements Service {
 
   constructor(config?: Partial<DiscoveryConfig>) {
     this._config = { ...DefaultDiscoveryConfig, ...config };
+
+    // Operational overrides. The defaults are tuned for the AIS workspace and
+    // are wrong for most other repositories: `packages`, `backend` and
+    // `docs` are excluded by default, and 10 000 files is too few for a
+    // large real-world project. Deployments can retune both without a code
+    // change.
+    const envExcludes = process.env.AIS_DISCOVERY_EXCLUDE;
+    if (envExcludes) {
+      const list = envExcludes
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      if (list.length > 0) this._config = { ...this._config, excludePatterns: list };
+    }
+    const envMaxFiles = Number(process.env.AIS_DISCOVERY_MAX_FILES);
+    if (Number.isFinite(envMaxFiles) && envMaxFiles > 0) {
+      this._config = { ...this._config, maxFiles: envMaxFiles };
+    }
+    const envMaxDepth = Number(process.env.AIS_DISCOVERY_MAX_DEPTH);
+    if (Number.isFinite(envMaxDepth) && envMaxDepth > 0) {
+      this._config = { ...this._config, maxDepth: envMaxDepth };
+    }
   }
 
   async initialize(): Promise<void> {
@@ -78,6 +100,11 @@ export class DiscoveryPipelineService implements Service {
 
   async shutdown(): Promise<void> {
     this._started = false;
+  }
+
+  /** The effective configuration (after env overrides). */
+  get config(): DiscoveryConfig {
+    return this._config;
   }
 
   // ─── Public API ─────────────────────────────────────────────
@@ -276,7 +303,7 @@ export class DiscoveryPipelineService implements Service {
     while ((match = regex.exec(content)) !== null) {
       const target = match[1];
       // Only capture relative (internal) dependencies, not node_modules
-      if (target.startsWith('.') && deps.length < 5000) {
+      if (target.startsWith('.') && deps.length < 50_000) {
         deps.push(
           Object.freeze({
             from: source,

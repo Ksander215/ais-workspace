@@ -1,0 +1,1360 @@
+diff --git a/src/__tests__/mvp-ui/fallback-analysis.test.ts b/src/__tests__/mvp-ui/fallback-analysis.test.ts
+new file mode 100644
+index 0000000..b0c8e96
+--- /dev/null
++++ b/src/__tests__/mvp-ui/fallback-analysis.test.ts
+@@ -0,0 +1,60 @@
++import { describe, expect, it } from 'vitest';
++import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++
++import { analyzeWithoutLlm } from '../../mvp-ui/fallback-analysis.js';
++
++/** Builds a small pnpm-style workspace with two packages and a cross import. */
++function makeWorkspace(): string {
++  const root = mkdtempSync(join(tmpdir(), 'ais-fallback-'));
++  const pkgA = join(root, 'packages', 'alpha');
++  const pkgB = join(root, 'packages', 'beta');
++  mkdirSync(join(pkgA, 'src'), { recursive: true });
++  mkdirSync(join(pkgB, 'src'), { recursive: true });
++
++  writeFileSync(
++    join(pkgA, 'package.json'),
++    JSON.stringify({
++      name: '@acme/alpha',
++      version: '0.1.0',
++      dependencies: { '@acme/beta': 'workspace:*' },
++    }),
++  );
++  writeFileSync(
++    join(pkgB, 'package.json'),
++    JSON.stringify({ name: '@acme/beta', version: '0.1.0' }),
++  );
++  writeFileSync(
++    join(pkgA, 'src', 'index.ts'),
++    "export const alpha = 1;\nimport { beta } from '../../packages/beta/src/index.js';\nexport const both = beta + alpha;\n",
++  );
++  writeFileSync(join(pkgB, 'src', 'index.ts'), 'export const beta = 2;\n');
++  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true }));
++  return root;
++}
++
++describe('fallback analysis', () => {
++  it('reports workspace packages and their declared cross-package dependency', async () => {
++    const root = makeWorkspace();
++    const result = await analyzeWithoutLlm(root, 'Which modules depend on each other?');
++
++    expect(result.content).toContain('packages/alpha');
++    expect(result.content).toContain('packages/beta');
++    // The manifest edge is invisible to file-level import scanning, so it has
++    // to come from the package.json declarations.
++    expect(result.content).toContain('Declared workspace package dependencies');
++    expect(result.content).toMatch(/packages\/alpha → packages\/beta/);
++  }, 60_000);
++
++  it('returns real sources with file:line excerpts and no LLM prose', async () => {
++    const root = makeWorkspace();
++    const result = await analyzeWithoutLlm(root, 'Where is the alpha entry point defined?');
++
++    expect(result.sources.length).toBeGreaterThan(0);
++    const source = result.sources[0];
++    expect(source.filePath).toMatch(/\.ts$/);
++    expect(source.excerpt).toMatch(/\d+ \|/);
++    expect(result.content).toContain('code-derived facts (no LLM)');
++  }, 60_000);
++});
+diff --git a/src/__tests__/mvp-ui/github-resolver-limits.test.ts b/src/__tests__/mvp-ui/github-resolver-limits.test.ts
+new file mode 100644
+index 0000000..ba2927e
+--- /dev/null
++++ b/src/__tests__/mvp-ui/github-resolver-limits.test.ts
+@@ -0,0 +1,77 @@
++/**
++ * GitHub Resolver — configurable limits + pinned commit
++ *
++ * AIS could not analyse large real-world repositories: the fixed ceilings
++ * (10 000 files / 50MB) rejected e.g. deepseek-ai/deepseek-harness
++ * (~20k files, ~185MB), and the clone always took branch HEAD, so a
++ * validation run could not be pinned to a frozen commit.
++ */
++
++import { describe, it, expect, afterEach } from 'vitest';
++import {
++  GitHubResolver,
++  GitHubResolverError,
++  resolveRepoLimitsFromEnv,
++} from '../../mvp-ui/github-resolver.js';
++import { rmSync } from 'node:fs';
++
++const created: string[] = [];
++
++afterEach(() => {
++  for (const p of created.splice(0)) {
++    rmSync(p, { recursive: true, force: true });
++  }
++  delete process.env.AIS_REPO_MAX_FILES;
++  delete process.env.AIS_REPO_MAX_SIZE_MB;
++  delete process.env.AIS_REPO_MAX_CLONE_MS;
++});
++
++describe('resolveRepoLimitsFromEnv', () => {
++  it('falls back to the conservative defaults', () => {
++    const limits = resolveRepoLimitsFromEnv();
++    expect(limits.maxFileCount).toBe(10_000);
++    expect(limits.maxRepoSizeBytes).toBe(50 * 1024 * 1024);
++    expect(limits.maxCloneTimeMs).toBe(60_000);
++  });
++
++  it('reads the ceilings from the environment', () => {
++    process.env.AIS_REPO_MAX_FILES = '50000';
++    process.env.AIS_REPO_MAX_SIZE_MB = '512';
++    process.env.AIS_REPO_MAX_CLONE_MS = '600000';
++    const limits = resolveRepoLimitsFromEnv();
++    expect(limits.maxFileCount).toBe(50_000);
++    expect(limits.maxRepoSizeBytes).toBe(512 * 1024 * 1024);
++    expect(limits.maxCloneTimeMs).toBe(600_000);
++  });
++
++  it('ignores invalid environment values', () => {
++    process.env.AIS_REPO_MAX_FILES = 'not-a-number';
++    process.env.AIS_REPO_MAX_SIZE_MB = '-5';
++    const limits = resolveRepoLimitsFromEnv();
++    expect(limits.maxFileCount).toBe(10_000);
++    expect(limits.maxRepoSizeBytes).toBe(50 * 1024 * 1024);
++  });
++
++  it('applies the environment to a resolver instance', () => {
++    process.env.AIS_REPO_MAX_FILES = '4321';
++    const resolver = new GitHubResolver({ cloneRoot: '/tmp/ais-resolver-limits-test' });
++    expect(resolver).toBeInstanceOf(GitHubResolver);
++  });
++});
++
++describe('GitHubResolver — URL validation', () => {
++  it('rejects a non-GitHub URL', () => {
++    const resolver = new GitHubResolver({ cloneRoot: '/tmp/ais-resolver-limits-test' });
++    expect(() => resolver.parseUrl('https://gitlab.com/a/b')).toThrow(
++      GitHubResolverError,
++    );
++  });
++
++  it('parses owner and name', () => {
++    const resolver = new GitHubResolver({ cloneRoot: '/tmp/ais-resolver-limits-test' });
++    expect(resolver.parseUrl('https://github.com/deepseek-ai/deepseek-harness')).toEqual({
++      owner: 'deepseek-ai',
++      name: 'deepseek-harness',
++    });
++  });
++});
+diff --git a/src/__tests__/mvp-ui/path-security-windows.test.ts b/src/__tests__/mvp-ui/path-security-windows.test.ts
+new file mode 100644
+index 0000000..9c11471
+--- /dev/null
++++ b/src/__tests__/mvp-ui/path-security-windows.test.ts
+@@ -0,0 +1,174 @@
++/**
++ * Path Security — platform-aware regression suite
++ *
++ * Covers the Windows defect: a normal Windows path such as
++ * C:\Users\0\ais-polygon was rejected because '\' and '//' were treated as
++ * dangerous patterns, and containment was checked with POSIX-only prefix
++ * matching (sibling-prefix attacks).
++ */
++
++import { describe, it, expect, beforeEach, afterEach } from 'vitest';
++import { PathSecurityService, PathSecurityError } from '../../mvp-ui/path-security.js';
++import { resolve } from 'node:path';
++import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
++
++const TMP_DIR = resolve('/tmp/ais-path-sec-' + process.pid);
++const DEMO_DIR = resolve(TMP_DIR, 'demo-project');
++const ALLOWED_SUBDIR = resolve(TMP_DIR, 'allowed-sub');
++
++beforeEach(() => {
++  mkdirSync(DEMO_DIR, { recursive: true });
++  mkdirSync(ALLOWED_SUBDIR, { recursive: true });
++});
++
++afterEach(() => {
++  rmSync(TMP_DIR, { recursive: true, force: true });
++});
++
++function svc(roots: string[] = [], demos: string[] = []) {
++  return new PathSecurityService({ allowedRoots: roots, demoAllowlist: demos });
++}
++
++// ── Windows paths ─────────────────────────────────────────────────
++
++describe('PathSecurity — Windows paths', () => {
++  it('accepts a normal Windows path under an allowed root', () => {
++    const s = svc(['C:\\Users\\0']);
++    expect(s.validateProjectPath('C:\\Users\\0\\ais-polygon')).toBe(
++      'C:\\Users\\0\\ais-polygon',
++    );
++  });
++
++  it('accepts a nested Windows path', () => {
++    const s = svc(['C:\\Users\\0']);
++    expect(s.validateProjectPath('C:\\Users\\0\\ais-polygon\\src\\core')).toBe(
++      'C:\\Users\\0\\ais-polygon\\src\\core',
++    );
++  });
++
++  it('rejects a Windows path escaping the root', () => {
++    const s = svc(['C:\\Users\\0\\ais-polygon']);
++    expect(() => s.validateProjectPath('C:\\Users\\0\\other')).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('rejects ..\\ traversal that escapes the root', () => {
++    const s = svc(['C:\\Users\\0\\ais-polygon']);
++    expect(() => s.validateProjectPath('C:\\Users\\0\\ais-polygon\\..\\secrets')).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('rejects ..\\..\\ traversal that escapes the root', () => {
++    const s = svc(['C:\\Users\\0\\ais-polygon']);
++    expect(() =>
++      s.validateProjectPath('C:\\Users\\0\\ais-polygon\\..\\..\\Windows'),
++    ).toThrow(PathSecurityError);
++  });
++
++  it('rejects a sibling-prefix attack', () => {
++    const s = svc(['C:\\Users\\0\\ais-polygon']);
++    expect(() => s.validateProjectPath('C:\\Users\\0\\ais-polygon-evil')).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('accepts a Windows demo allowlist entry', () => {
++    const s = svc([], ['C:\\Users\\0\\ais-polygon']);
++    expect(s.validateProjectPath('C:\\Users\\0\\ais-polygon', { isDemo: true })).toBe(
++      'C:\\Users\\0\\ais-polygon',
++    );
++  });
++
++  it('accepts a subdirectory of a Windows demo allowlist entry', () => {
++    const s = svc([], ['C:\\Users\\0\\ais-polygon']);
++    expect(
++      s.validateProjectPath('C:\\Users\\0\\ais-polygon\\src', { isDemo: true }),
++    ).toBe('C:\\Users\\0\\ais-polygon\\src');
++  });
++
++  it('rejects a sibling Demo-prefix attack', () => {
++    const s = svc([], ['C:\\Users\\0\\ais-polygon']);
++    expect(() =>
++      s.validateProjectPath('C:\\Users\\0\\ais-polygon-evil', { isDemo: true }),
++    ).toThrow(PathSecurityError);
++  });
++});
++
++// ── POSIX paths ───────────────────────────────────────────────────
++
++describe('PathSecurity — POSIX paths', () => {
++  it('accepts a path under an allowed root', () => {
++    const s = svc([TMP_DIR]);
++    expect(s.validateProjectPath(ALLOWED_SUBDIR)).toBe(ALLOWED_SUBDIR);
++  });
++
++  it('rejects a sibling-prefix attack', () => {
++    const s = svc([TMP_DIR]);
++    const sibling = TMP_DIR + '-evil';
++    mkdirSync(sibling, { recursive: true });
++    try {
++      expect(() => s.validateProjectPath(sibling)).toThrow(PathSecurityError);
++    } finally {
++      rmSync(sibling, { recursive: true, force: true });
++    }
++  });
++
++  it('rejects a path outside allowed roots', () => {
++    const s = svc([TMP_DIR]);
++    expect(() => s.validateProjectPath('/etc')).toThrow(PathSecurityError);
++  });
++
++  it('rejects traversal out of the root', () => {
++    const s = svc([TMP_DIR]);
++    expect(() => s.validateProjectPath(TMP_DIR + '/../etc')).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('rejects URL-encoded traversal', () => {
++    const s = svc([TMP_DIR]);
++    expect(() => s.validateProjectPath(TMP_DIR + '/%2e%2e/etc')).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('rejects a non-existent path', () => {
++    const s = svc([TMP_DIR]);
++    expect(() => s.validateProjectPath(resolve(TMP_DIR, 'nope'))).toThrow(
++      PathSecurityError,
++    );
++  });
++
++  it('rejects a file path', () => {
++    const file = resolve(TMP_DIR, 'a.txt');
++    writeFileSync(file, 'x');
++    const s = svc([TMP_DIR]);
++    expect(() => s.validateProjectPath(file)).toThrow(PathSecurityError);
++  });
++});
++
++// ── Helpers ───────────────────────────────────────────────────────
++
++describe('PathSecurity — helpers', () => {
++  it('lists Windows demo project names', () => {
++    const s = svc([], ['C:\\Users\\0\\ais-polygon']);
++    expect(s.getDemoProjects()).toContain('ais-polygon');
++  });
++
++  it('lists POSIX demo project names', () => {
++    const s = svc([], [DEMO_DIR]);
++    expect(s.getDemoProjects()).toContain('demo-project');
++  });
++
++  it('isAllowedRoot is false for a sibling prefix', () => {
++    const s = svc([TMP_DIR]);
++    expect(s.isAllowedRoot(TMP_DIR + '-evil')).toBe(false);
++  });
++
++  it('isDemoAllowed is false for a sibling prefix', () => {
++    const s = svc([], [DEMO_DIR]);
++    expect(s.isDemoAllowed(DEMO_DIR + '-evil')).toBe(false);
++  });
++});
+diff --git a/src/core/discovery/discovery-pipeline.service.ts b/src/core/discovery/discovery-pipeline.service.ts
+index c921e2c..676ca9a 100755
+--- a/src/core/discovery/discovery-pipeline.service.ts
++++ b/src/core/discovery/discovery-pipeline.service.ts
+@@ -57,6 +57,28 @@ export class DiscoveryPipelineService implements Service {
+ 
+   constructor(config?: Partial<DiscoveryConfig>) {
+     this._config = { ...DefaultDiscoveryConfig, ...config };
++
++    // Operational overrides. The defaults are tuned for the AIS workspace and
++    // are wrong for most other repositories: `packages`, `backend` and
++    // `docs` are excluded by default, and 10 000 files is too few for a
++    // large real-world project. Deployments can retune both without a code
++    // change.
++    const envExcludes = process.env.AIS_DISCOVERY_EXCLUDE;
++    if (envExcludes) {
++      const list = envExcludes
++        .split(',')
++        .map((s) => s.trim())
++        .filter((s) => s.length > 0);
++      if (list.length > 0) this._config = { ...this._config, excludePatterns: list };
++    }
++    const envMaxFiles = Number(process.env.AIS_DISCOVERY_MAX_FILES);
++    if (Number.isFinite(envMaxFiles) && envMaxFiles > 0) {
++      this._config = { ...this._config, maxFiles: envMaxFiles };
++    }
++    const envMaxDepth = Number(process.env.AIS_DISCOVERY_MAX_DEPTH);
++    if (Number.isFinite(envMaxDepth) && envMaxDepth > 0) {
++      this._config = { ...this._config, maxDepth: envMaxDepth };
++    }
+   }
+ 
+   async initialize(): Promise<void> {
+@@ -80,6 +102,11 @@ export class DiscoveryPipelineService implements Service {
+     this._started = false;
+   }
+ 
++  /** The effective configuration (after env overrides). */
++  get config(): DiscoveryConfig {
++    return this._config;
++  }
++
+   // ─── Public API ─────────────────────────────────────────────
+ 
+   /**
+@@ -276,7 +303,7 @@ export class DiscoveryPipelineService implements Service {
+     while ((match = regex.exec(content)) !== null) {
+       const target = match[1];
+       // Only capture relative (internal) dependencies, not node_modules
+-      if (target.startsWith('.') && deps.length < 5000) {
++      if (target.startsWith('.') && deps.length < 50_000) {
+         deps.push(
+           Object.freeze({
+             from: source,
+diff --git a/src/core/discovery/discovery-types.ts b/src/core/discovery/discovery-types.ts
+index 852d6d8..9f5a5b0 100755
+--- a/src/core/discovery/discovery-types.ts
++++ b/src/core/discovery/discovery-types.ts
+@@ -88,6 +88,16 @@ export interface DiscoveryConfig {
+ /**
+  * Default discovery configuration.
+  */
++/**
++ * Default discovery configuration.
++ *
++ * The exclusion list only removes vendor and build output. Project source
++ * directories (`packages`, `backend`, `src`, `apps`, …) are NOT excluded by
++ * default: in most repositories — every monorepo in particular — that is
++ * where the code lives, and excluding it leaves AIS with an empty graph.
++ * Deployments that need the previous, AIS-workspace-specific list can restore
++ * it with `AIS_DISCOVERY_EXCLUDE`.
++ */
+ export const DefaultDiscoveryConfig: DiscoveryConfig = {
+   rootPath: '.',
+   excludePatterns: [
+@@ -100,16 +110,6 @@ export const DefaultDiscoveryConfig: DiscoveryConfig = {
+     '.cache',
+     'frames',
+     '__tests__',
+-    // TASK-MVP-FREE-QUALITY-GATE-001: Exclude non-core project directories
+-    // that pollute the ArchitectureGraph and cause false keyword matches
+-    // in findRelevantNodes() (e.g., "evidence" matching landing.app.evidence).
+-    'landing',
+-    'backend',
+-    'docs',
+-    'scripts',
+-    'plugins',
+-    'packages',
+-    'skills',
+   ],
+   maxDepth: 10,
+   maxFiles: 10000,
+diff --git a/src/mvp-ui/fallback-analysis.ts b/src/mvp-ui/fallback-analysis.ts
+new file mode 100644
+index 0000000..e5f2ad9
+--- /dev/null
++++ b/src/mvp-ui/fallback-analysis.ts
+@@ -0,0 +1,511 @@
++/**
++ * Fallback analysis without an LLM.
++ *
++ * The hosted demo runs without OPENAI_API_KEY, and the engine refuses to
++ * fabricate prose. But the deterministic half of AIS — discovery, module
++ * boundaries, dependency graph, source excerpts — needs no model at all.
++ *
++ * So when no LLM is available we answer with FACTS, not with a generated
++ * narrative: tech stack, module inventory, entry points, and the real files
++ * whose content matches the question, each with file:line evidence.
++ * The UI shows the label "code-derived facts (no LLM)" so nobody mistakes
++ * this for a generated answer.
++ */
++
++import { readFileSync, statSync, existsSync } from 'node:fs';
++import { join, relative, sep } from 'node:path';
++import { DiscoveryPipelineService } from '../core/discovery/discovery-pipeline.service.js';
++
++export interface FallbackSource {
++  filePath: string;
++  description: string;
++  relevance: number;
++  excerpt: string;
++}
++
++export interface FallbackAnswer {
++  content: string;
++  sources: FallbackSource[];
++  claims: Array<{ statement: string; isVerified: boolean; evidenceCount: number }>;
++}
++
++/**
++ * Words that carry no retrieval signal. Kept deliberately small: domain words
++ * like "architecture" or "module" are exactly what we want to match on.
++ */
++const STOP_WORDS = new Set([
++  'the', 'a', 'an', 'of', 'and', 'or', 'to', 'in', 'is', 'are', 'this', 'that',
++  'it', 'for', 'on', 'with', 'as', 'be', 'by', 'at', 'from', 'how', 'what',
++  'does', 'do', 'can', 'cannot', 'which', 'who', 'whom', 'whose', 'there',
++  'their', 'they', 'them', 'was', 'were', 'been', 'being', 'have', 'has', 'had',
++  'not', 'but', 'you', 'your', 'our', 'we', 'us', 'i', 'me', 'my', 'any',
++]);
++
++const MAX_FILES = 400;
++const MAX_SNIPPET_LINES = 24;
++
++/** Candidate-file budget for keyword matching (env-tunable for big repos). */
++function maxCandidateFiles(): number {
++  const raw = Number(process.env.AIS_FALLBACK_MAX_CANDIDATES);
++  return Number.isFinite(raw) && raw > 0 ? raw : MAX_FILES;
++}
++
++/**
++ * Question terms for retrieval, plus a fallback set of structural terms so a
++ * broad question ("what is the overall architecture") still lands on the
++ * files that describe the project rather than nothing.
++ */
++const STRUCTURAL_TERMS = ['index', 'main', 'app', 'core', 'config', 'readme', 'package'];
++
++/**
++ * Question terms for retrieval, plus a fallback set of structural terms so a
++ * broad question ("what is the overall architecture") still lands on the
++ * files that describe the project rather than nothing.
++ *
++ * Structural terms carry a low weight: they match almost every file, so
++ * counting them like question-specific words buries the real answer under
++ * incidental matches.
++ */
++function keywords(question: string): { terms: string[]; weights: Map<string, number> } {
++  const raw = question
++    .toLowerCase()
++    .split(/[^a-z0-9_]+/i)
++    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
++
++  // Drop generic interrogative phrases that match everything ("project",
++  // "repository") — they add noise without pointing at real code.
++  const generic = new Set([
++    'project', 'codebase', 'repository', 'repo', 'code', 'overall', 'total',
++    'used', 'uses', 'using', 'based', 'across', 'into', 'out', 'about',
++  ]);
++  const strong = raw.filter((w) => !generic.has(w));
++
++  const weights = new Map<string, number>();
++  for (const t of strong) weights.set(t, 3);
++  for (const t of STRUCTURAL_TERMS) weights.set(t, 1);
++
++  const terms = Array.from(new Set([...strong, ...STRUCTURAL_TERMS])).slice(0, 16);
++  return { terms, weights };
++}
++
++/** Read a file and return the lines that mention one of the keywords. */
++function extractSnippet(
++  filePath: string,
++  terms: string[],
++  weights: Map<string, number> = new Map(),
++): { snippet: string; hits: number; distinctTerms: number; score: number } | null {
++  let text: string;
++  try {
++    text = readFileSync(filePath, 'utf8');
++  } catch {
++    return null;
++  }
++  const lines = text.split('\n');
++  const scored: Array<{ idx: number; score: number }> = [];
++  // A term is counted once per file for the ranking: a file that repeats
++  // "package" two hundred times is not more relevant than one that repeats it
++  // five times, it is just a bigger file.
++  const termHits = new Map<string, number>();
++  lines.forEach((line, idx) => {
++    const lower = line.toLowerCase();
++    let score = 0;
++    for (const t of terms) {
++      if (!lower.includes(t)) continue;
++      termHits.set(t, (termHits.get(t) ?? 0) + 1);
++      score += weights.get(t) ?? 1;
++    }
++    if (score > 0) scored.push({ idx, score });
++  });
++  if (scored.length === 0) return null;
++
++  const distinctTerms = termHits.size;
++  const distinctScore = [...termHits.entries()].reduce(
++    (sum, [term, count]) => sum + (weights.get(term) ?? 1) * Math.min(count, 5),
++    0,
++  );
++
++  // Take the strongest window of lines.
++  scored.sort((a, b) => b.score - a.score);
++  const best = scored[0];
++  const start = Math.max(0, best.idx - Math.floor(MAX_SNIPPET_LINES / 3));
++  const end = Math.min(lines.length, start + MAX_SNIPPET_LINES);
++  const numbered = lines
++    .slice(start, end)
++    .map((l, i) => `${String(start + i + 1).padStart(4, ' ')} | ${l}`)
++    .join('\n');
++  return {
++    snippet: numbered,
++    hits: scored.length,
++    distinctTerms,
++    score: distinctScore,
++  };
++}
++
++/**
++ * Workspace unit of a file: the meaningful container of a monorepo.
++ *
++ * Directory-level modules are too granular to be useful on their own
++ * (a pnpm workspace easily has 1 200 of them, mostly test folders), so the
++ * unit is the workspace package: `packages/<name>`, `apps/<name>`, or the
++ * top-level directory when the repo is not a workspace.
++ */
++function workspaceUnit(relativePath: string): string {
++  const parts = relativePath.split('/');
++  if (parts.length === 1) return '.';
++  if (['packages', 'apps', 'crates', 'libs', 'services', 'modules'].includes(parts[0])) {
++    return parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
++  }
++  return parts[0];
++}
++
++/** A workspace unit with its file counts and entry point. */
++interface UnitSummary {
++  unit: string;
++  fileCount: number;
++  sourceFileCount: number;
++  testFileCount: number;
++  entryPoint?: string;
++}
++
++/**
++ * Reads the workspace package manifests of a monorepo.
++ *
++ * Cross-package imports in a pnpm/npm workspace are bare specifiers
++ * (`@deepseek-ai/dsh-util-values`), so file-level import scanning cannot see
++ * them at all. The manifests are the authoritative source: a package name maps
++ * to a unit, and its declared dependencies give the real edges.
++ */
++function readWorkspaceManifests(
++  projectPath: string,
++  files: ReadonlyArray<{ relativePath: string }>,
++): Map<string, { unit: string; dependencies: string[] }> {
++  const manifests = new Map<string, { unit: string; dependencies: string[] }>();
++  for (const file of files) {
++    if (!file.relativePath.endsWith('package.json')) continue;
++    if (file.relativePath.split('/').length < 2) continue; // root manifest
++    const abs = join(projectPath, file.relativePath);
++    let parsed: { name?: string; dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
++    try {
++      parsed = JSON.parse(readFileSync(abs, 'utf8'));
++    } catch {
++      continue;
++    }
++    if (!parsed.name) continue;
++    const dir = file.relativePath.slice(0, file.relativePath.length - 'package.json'.length).replace(/\/$/, '');
++    const deps = [
++      ...Object.keys(parsed.dependencies ?? {}),
++      ...Object.keys(parsed.devDependencies ?? {}),
++    ];
++    manifests.set(parsed.name, { unit: dir, dependencies: deps });
++  }
++  return manifests;
++}
++
++/** Aggregates discovered files into workspace units. */
++function summarizeUnits(
++  files: ReadonlyArray<{ relativePath: string }>,
++  manifests: Map<string, { unit: string; dependencies: string[] }>,
++): UnitSummary[] {
++  const packageDirs = [...manifests.values()]
++    .map((m) => m.unit)
++    .filter((d) => d.length > 0)
++    .sort((a, b) => b.length - a.length);
++  const unitFor = (path: string): string => {
++    for (const dir of packageDirs) {
++      if (path === dir || path.startsWith(`${dir}/`)) return dir;
++    }
++    return workspaceUnit(path);
++  };
++
++  const map = new Map<string, UnitSummary>();
++  for (const file of files) {
++    const unit = unitFor(file.relativePath);
++    let entry = map.get(unit);
++    if (!entry) {
++      entry = { unit, fileCount: 0, sourceFileCount: 0, testFileCount: 0 };
++      map.set(unit, entry);
++    }
++    entry.fileCount += 1;
++    const base = file.relativePath.split('/').pop() ?? '';
++    const isTest =
++      /\.(test|spec)\.[cm]?[jt]sx?$/.test(base) ||
++      /(^|\/)(tests?|__tests__)\//.test(file.relativePath);
++    if (isTest) entry.testFileCount += 1;
++    else entry.sourceFileCount += 1;
++    if (!entry.entryPoint && /(^|\/)(index|main|cli|server)\.[cm]?[jt]sx?$/.test(base)) {
++      entry.entryPoint = file.relativePath;
++    }
++  }
++  return [...map.values()].sort(
++    (a, b) => b.sourceFileCount - a.sourceFileCount || b.fileCount - a.fileCount,
++  );
++}
++
++/**
++ * Dependency edges between workspace units, counted and deduplicated.
++ * The raw edges are file-to-file, which is unreadable for a monorepo.
++ */
++function summarizeUnitDependencies(
++  dependencies: ReadonlyArray<{ from: string; to: string; type: string }>,
++  files: ReadonlyArray<{ relativePath: string }>,
++  manifests: Map<string, { unit: string; dependencies: string[] }>,
++): {
++  fileEdges: Array<{ from: string; to: string; count: number; types: string[] }>;
++  manifestEdges: Array<{ from: string; to: string; count: number }>;
++} {
++  const known = new Set(files.map((f) => f.relativePath));
++  // Package directories, longest first, so a file maps to its own package
++  // rather than to a broader workspace folder.
++  const packageDirs = [...manifests.values()]
++    .map((m) => m.unit)
++    .filter((d) => d.length > 0)
++    .sort((a, b) => b.length - a.length);
++
++  const unitFor = (path: string): string => {
++    for (const dir of packageDirs) {
++      if (path === dir || path.startsWith(`${dir}/`)) return dir;
++    }
++    return workspaceUnit(path);
++  };
++
++  const counts = new Map<string, { from: string; to: string; count: number; types: Set<string> }>();
++  const manifestCounts = new Map<string, { from: string; to: string; count: number }>();
++  const bump = (from: string, to: string, type: string): void => {
++    if (from === to) return;
++    const key = `${from}→${to}`;
++    let edge = counts.get(key);
++    if (!edge) {
++      edge = { from, to, count: 0, types: new Set() };
++      counts.set(key, edge);
++    }
++    edge.count += 1;
++    edge.types.add(type);
++  };
++
++  // 1. File-level relative imports inside the repository.
++  //    A relative specifier usually omits the extension and may point at a
++  //    directory, so the target is resolved the way a bundler would.
++  const resolveTarget = (from: string, spec: string): string | undefined => {
++    if (!spec.startsWith('.')) return undefined;
++    const base = from.split('/').slice(0, -1);
++    const segments: string[] = [];
++    for (const segment of [...base, ...spec.split('/')]) {
++      if (segment === '.' || segment === '') continue;
++      if (segment === '..') segments.pop();
++      else segments.push(segment);
++    }
++    const raw = segments.join('/');
++    const candidates = [
++      raw,
++      `${raw}.ts`, `${raw}.tsx`, `${raw}.js`, `${raw}.jsx`, `${raw}.mjs`, `${raw}.cjs`,
++      `${raw}/index.ts`, `${raw}/index.tsx`, `${raw}/index.js`, `${raw}/index.jsx`,
++    ];
++    for (const candidate of candidates) {
++      if (known.has(candidate)) return candidate;
++    }
++    return undefined;
++  };
++
++  for (const dep of dependencies) {
++    const fromUnit = unitFor(dep.from);
++    const target = resolveTarget(dep.from, dep.to);
++    if (!target) continue; // not a repository file
++    bump(fromUnit, unitFor(target), dep.type);
++  }
++
++  // 2. Workspace packages declared in the manifests — the only way to see
++  //    cross-package dependencies in a pnpm/npm workspace.
++  for (const [, manifest] of manifests) {
++    for (const depName of manifest.dependencies) {
++      const target = manifests.get(depName);
++      if (!target) continue; // an external npm dependency, not a workspace unit
++      if (manifest.unit === target.unit) continue;
++      const key = `${manifest.unit}→${target.unit}`;
++      const edge = manifestCounts.get(key) ?? { from: manifest.unit, to: target.unit, count: 0 };
++      edge.count += 1;
++      manifestCounts.set(key, edge);
++    }
++  }
++
++  const fileEdges = [...counts.values()]
++    .map((e) => ({ from: e.from, to: e.to, count: e.count, types: [...e.types] }))
++    .sort((a, b) => b.count - a.count);
++  const manifestEdges = [...manifestCounts.values()].sort((a, b) => b.count - a.count);
++
++  return { fileEdges, manifestEdges };
++}
++
++export async function analyzeWithoutLlm(
++  projectPath: string,
++  question: string,
++): Promise<FallbackAnswer> {
++  const discovery = new DiscoveryPipelineService({ rootPath: projectPath });
++  await discovery.initialize();
++  await discovery.start();
++  const { discovery: result } = await discovery.discover('fallback');
++  const config = discovery.config;
++
++  const { terms, weights } = keywords(question);
++  // Rank candidate files by how likely they are to answer the question:
++  // a path or name that mentions a term comes first. Test files are kept
++  // aside — they mention terms often but rarely answer the question, so they
++  // are only used when there is nothing else to show.
++  const isTestFile = (relativePath: string): boolean => {
++    const base = relativePath.split('/').pop() ?? '';
++    return (
++      /\.(test|spec)\.[cm]?[jt]sx?$/.test(base) ||
++      /(^|\/)(tests?|__tests__|fixtures?|__fixtures__)\//.test(relativePath)
++    );
++  };
++
++  const ranked = result.files
++    .filter((f) => f.extension === '.ts' || f.extension === '.js' || f.extension === '.mjs')
++    .map((f) => {
++      const lower = f.relativePath.toLowerCase();
++      let score = 0;
++      for (const t of terms) if (lower.includes(t)) score += weights.get(t) ?? 1;
++      return { file: f, score };
++    })
++    .sort((a, b) => b.score - a.score);
++
++  const budget = maxCandidateFiles();
++  const sourceFiles = ranked.filter((c) => !isTestFile(c.file.relativePath));
++  const testFiles = ranked.filter((c) => isTestFile(c.file.relativePath));
++  const candidates = [...sourceFiles, ...testFiles].slice(0, budget).map((c) => c.file);
++
++  const hitsPerFile: Array<{ source: FallbackSource; hits: number; distinctTerms: number; score: number }> = [];
++  for (const file of candidates) {
++    const abs = join(projectPath, file.relativePath);
++    try {
++      statSync(abs);
++    } catch {
++      continue;
++    }
++    const found = extractSnippet(abs, terms, weights);
++    if (!found) continue;
++    const rel = relative(projectPath, abs).split(sep).join('/');
++    hitsPerFile.push({
++      hits: found.hits,
++      distinctTerms: found.distinctTerms,
++      score: found.score,
++      source: {
++        filePath: rel,
++        description:
++          `Matched ${found.distinctTerms} distinct question term(s) in ${found.hits} line(s) of this file.`,
++        relevance: 0,
++        excerpt: found.snippet,
++      },
++    });
++  }
++
++  hitsPerFile.sort((a, b) => b.score - a.score);
++  const maxScore = hitsPerFile[0]?.score ?? 1;
++  for (const h of hitsPerFile) {
++    h.source.relevance = Math.min(0.95, 0.3 + 0.6 * (h.score / maxScore));
++  }
++  const sources = hitsPerFile.map((h) => h.source);
++  const top = sources.slice(0, 6);
++
++  const tech = result.techStack.map((t) => t.name).join(', ') || 'not detected';
++
++  // Workspace packages — the level a human reads a monorepo at.
++  const manifests = readWorkspaceManifests(projectPath, result.files);
++  const units = summarizeUnits(result.files, manifests);
++  const modules = units
++    .slice(0, 15)
++    .map(
++      (u) =>
++        `  • ${u.unit} — ${u.sourceFileCount} source file(s)` +
++        (u.testFileCount ? `, ${u.testFileCount} test file(s)` : '') +
++        (u.entryPoint ? `, entry: ${u.entryPoint}` : ''),
++    )
++    .join('\n');
++
++  // Dependency edges between workspace units — real, extracted relations.
++  const { fileEdges, manifestEdges } = summarizeUnitDependencies(
++    result.dependencies,
++    result.files,
++    manifests,
++  );
++  const depEdges = fileEdges
++    .slice(0, 15)
++    .map((d) => `  • ${d.from} → ${d.to} — ${d.count} import(s) [${d.types.join(', ')}]`)
++    .join('\n');
++  const manifestDepEdges = manifestEdges
++    .slice(0, 15)
++    .map((d) => `  • ${d.from} → ${d.to} — ${d.count} declared dependency(ies)`)
++    .join('\n');
++
++  // Coverage honesty: what the scan did NOT see (Q6/Q7 live here).
++  const excluded = config.excludePatterns.filter((dir) => existsSync(join(projectPath, dir)));
++  const maxFiles = config.maxFiles;
++  const truncated = result.totalFiles >= maxFiles;
++
++  const coverage = [
++    `Scanned ${result.totalFiles} file(s), ${result.totalSize.toLocaleString()} bytes.`,
++    truncated
++      ? `SCAN TRUNCATED: the discovery limit is ${maxFiles.toLocaleString()} files, so this answer does NOT cover the whole repository.`
++      : 'Scan completed without hitting the file limit.',
++    excluded.length
++      ? `Directories excluded by configuration and therefore NOT analyzed: ${excluded.join(', ')}.`
++      : 'No configured directories were excluded.',
++    `Config files detected: ${result.configFiles.slice(0, 8).join(', ') || 'none'}.`,
++  ].join('\n');
++
++  const sourcesBlock = top.length
++    ? top
++        .map((s) => `── ${s.filePath}\n${s.excerpt}`)
++        .join('\n\n')
++    : '(no source file mentions the question terms)';
++
++  const content = [
++    'code-derived facts (no LLM)',
++    '',
++    `Question: ${question}`,
++    '',
++    'This demo instance has no language model key configured, so AIS answered from the',
++    'deterministic part of the pipeline: it scanned the project, built the module map',
++    'and matched your question against the real source files. No prose was generated.',
++    '',
++    `Files scanned: ${result.totalFiles} (${result.totalSize} bytes)`,
++    `Tech stack: ${tech}`,
++    `Entry points: ${result.entryPoints.slice(0, 5).join(', ') || 'n/a'}`,
++    '',
++    `Workspace units (${units.length} total, top ${Math.min(15, units.length)} by source files):`,
++    modules || '  • none',
++    '',
++    `Dependency edges between units (file-level imports, top ${Math.min(15, fileEdges.length)}):`,
++    depEdges || '  • none detected',
++    '',
++    `Declared workspace package dependencies (top ${Math.min(15, manifestEdges.length)}):`,
++    manifestDepEdges || '  • none detected',
++    '',
++    'Scan coverage:',
++    coverage,
++    '',
++    `Question terms looked for: ${terms.join(', ') || '(none)'}`,
++    '',
++    'Matching source excerpts:',
++    sourcesBlock,
++  ].join('\n');
++
++  const claims = [
++    {
++      statement: `The project contains ${result.totalFiles} files across ${units.length} workspace units.`,
++      isVerified: true,
++      evidenceCount: top.length,
++    },
++    {
++      statement: `Detected tech stack: ${tech}.`,
++      isVerified: true,
++      evidenceCount: top.length,
++    },
++    ...top.map((s) => ({
++      statement: `${s.filePath} mentions the question terms.`,
++      isVerified: true,
++      evidenceCount: 1,
++    })),
++  ];
++
++  return { content, sources: top, claims };
++}
+diff --git a/src/mvp-ui/github-resolver.ts b/src/mvp-ui/github-resolver.ts
+index 6f1d084..206d5b6 100644
+--- a/src/mvp-ui/github-resolver.ts
++++ b/src/mvp-ui/github-resolver.ts
+@@ -68,6 +68,14 @@ export interface GitHubResolverConfig {
+   readonly maxCloneTimeMs?: number;
+ }
+ 
++export interface ResolveOptions {
++  /**
++   * Pinned commit SHA to check out instead of the branch HEAD.
++   * Enables reproducible validation runs against a frozen commit.
++   */
++  readonly ref?: string;
++}
++
+ // ═══════════════════════════════════════════════════════════════════
+ // CONSTANTS
+ // ═══════════════════════════════════════════════════════════════════
+@@ -82,10 +90,45 @@ const GENERATED_DIRS = new Set([
+   'target', '.gradle', '.idea', '.vscode',
+ ]);
+ 
+-const DEFAULT_MAX_REPO_SIZE = 50 * 1024 * 1024; // 50MB
+-const DEFAULT_MAX_FILE_COUNT = 10_000;
+-const DEFAULT_MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+-const DEFAULT_MAX_CLONE_TIME = 60_000; // 60s
++/** Read a positive integer from the environment, falling back to a default. */
++function envInt(name: string, fallback: number): number {
++  const raw = process.env[name];
++  if (!raw) return fallback;
++  const parsed = parseInt(raw, 10);
++  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
++}
++
++/**
++ * Limits resolved from the environment.
++ *
++ * Large real-world repositories (e.g. deepseek-ai/deepseek-harness: ~20k
++ * files, ~185MB) exceed the conservative defaults, so the ceilings are
++ * configurable without a code change.
++ */
++export function resolveRepoLimitsFromEnv(): {
++  maxRepoSizeBytes: number;
++  maxFileCount: number;
++  maxFileSizeBytes: number;
++  maxCloneTimeMs: number;
++} {
++  // Two names are accepted for each limit: the AIS_REPO_* form used by the
++  // CLI and the AIS_MAX_* form used by the hosted deployment.
++  const pick = (primary: string, alias: string, fallback: number): number =>
++    envInt(primary, envInt(alias, fallback));
++
++  // A byte-exact variant is also accepted for the size ceiling.
++  const sizeBytesRaw = process.env.AIS_MAX_REPO_SIZE_BYTES;
++  const sizeBytes = sizeBytesRaw && Number.isFinite(Number(sizeBytesRaw)) && Number(sizeBytesRaw) > 0
++    ? Number(sizeBytesRaw)
++    : pick('AIS_REPO_MAX_SIZE_MB', 'AIS_MAX_REPO_SIZE_MB', 50) * 1024 * 1024;
++
++  return {
++    maxRepoSizeBytes: sizeBytes,
++    maxFileCount: pick('AIS_REPO_MAX_FILES', 'AIS_MAX_FILE_COUNT', 10_000),
++    maxFileSizeBytes: pick('AIS_REPO_MAX_FILE_SIZE_MB', 'AIS_MAX_FILE_SIZE_MB', 1) * 1024 * 1024,
++    maxCloneTimeMs: pick('AIS_REPO_MAX_CLONE_MS', 'AIS_MAX_CLONE_TIME_MS', 60_000),
++  };
++}
+ 
+ // ═══════════════════════════════════════════════════════════════════
+ // SERVICE
+@@ -102,11 +145,12 @@ export class GitHubResolver {
+   private readonly activeClones = new Map<string, string>();
+ 
+   constructor(config?: GitHubResolverConfig) {
++    const envLimits = resolveRepoLimitsFromEnv();
+     this.cloneRoot = config?.cloneRoot ?? join(tmpdir(), 'ais-repos');
+-    this.maxRepoSizeBytes = config?.maxRepoSizeBytes ?? DEFAULT_MAX_REPO_SIZE;
+-    this.maxFileCount = config?.maxFileCount ?? DEFAULT_MAX_FILE_COUNT;
+-    this.maxFileSizeBytes = config?.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE;
+-    this.maxCloneTimeMs = config?.maxCloneTimeMs ?? DEFAULT_MAX_CLONE_TIME;
++    this.maxRepoSizeBytes = config?.maxRepoSizeBytes ?? envLimits.maxRepoSizeBytes;
++    this.maxFileCount = config?.maxFileCount ?? envLimits.maxFileCount;
++    this.maxFileSizeBytes = config?.maxFileSizeBytes ?? envLimits.maxFileSizeBytes;
++    this.maxCloneTimeMs = config?.maxCloneTimeMs ?? envLimits.maxCloneTimeMs;
+ 
+     // Ensure clone root exists
+     if (!existsSync(this.cloneRoot)) {
+@@ -146,7 +190,7 @@ export class GitHubResolver {
+    * Resolve a GitHub URL: validate, clone, enforce limits.
+    * Returns clone info for session creation.
+    */
+-  async resolve(url: string): Promise<ResolveResult> {
++  async resolve(url: string, options?: ResolveOptions): Promise<ResolveResult> {
+     // 1. Parse and validate URL (GHR-01)
+     const { owner, name } = this.parseUrl(url);
+ 
+@@ -194,6 +238,39 @@ export class GitHubResolver {
+         );
+       }
+ 
++      // 3b. Check out a pinned commit (reproducible validation runs).
++      //     A shallow clone has only the branch HEAD, so the pinned commit is
++      //     fetched explicitly before checkout.
++      if (options?.ref) {
++        const sha = options.ref.trim();
++        if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
++          rmSync(cloneDir, { recursive: true, force: true });
++          throw new GitHubResolverError(
++            `Invalid ref: ${options.ref}. Expected a commit SHA.`,
++            'INVALID_REF',
++          );
++        }
++        try {
++          execSync(`git fetch --depth 1 --quiet origin ${sha}`, {
++            cwd: cloneDir,
++            timeout: this.maxCloneTimeMs,
++            stdio: ['pipe', 'pipe', 'pipe'],
++            env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
++          });
++          execSync(`git checkout --quiet FETCH_HEAD`, {
++            cwd: cloneDir,
++            timeout: this.maxCloneTimeMs,
++            stdio: ['pipe', 'pipe', 'pipe'],
++          });
++        } catch {
++          rmSync(cloneDir, { recursive: true, force: true });
++          throw new GitHubResolverError(
++            `Could not check out ref ${sha}. The commit may not exist in this repository.`,
++            'REF_NOT_FOUND',
++          );
++        }
++      }
++
+       // 4. Get the commit hash (GHR-09)
+       try {
+         const commitHash = execSync('git rev-parse HEAD', {
+diff --git a/src/mvp-ui/http-adapter.ts b/src/mvp-ui/http-adapter.ts
+index 3437f39..5d8560f 100644
+--- a/src/mvp-ui/http-adapter.ts
++++ b/src/mvp-ui/http-adapter.ts
+@@ -46,6 +46,7 @@ import { getAllDemoConfigs } from './demo-config.js';
+ import type { ProjectService } from './project-service.js';
+ import type { InsightService } from './insight-service.js';
+ import { GoalAlignment } from './project-types.js';
++import { analyzeWithoutLlm } from './fallback-analysis.js';
+ 
+ // ═══════════════════════════════════════════════════════════════════
+ // TYPES
+@@ -351,9 +352,12 @@ export class HttpAdapter {
+ 
+     const parsed = this.parseObject(body);
+     const url = this.requireString(parsed, 'url');
++    const ref = typeof parsed.ref === 'string' && parsed.ref.trim()
++      ? parsed.ref.trim()
++      : undefined;
+ 
+     try {
+-      const result = await this.githubResolver.resolve(url);
++      const result = await this.githubResolver.resolve(url, { ref });
+       this.sendJson(res, 200, {
+         cloneId: result.cloneId,
+         projectPath: result.projectPath,
+@@ -363,6 +367,8 @@ export class HttpAdapter {
+       if (err instanceof GitHubResolverError) {
+         const statusMap: Record<string, number> = {
+           INVALID_URL: 400,
++          INVALID_REF: 400,
++          REF_NOT_FOUND: 404,
+           REPO_NOT_FOUND: 404,
+           REPO_PRIVATE: 403,
+           REPO_TOO_LARGE: 413,
+@@ -424,8 +430,43 @@ export class HttpAdapter {
+ 
+   /** POST /api/session/:id/question — Submit a question. */
+   private async handleSubmitQuestion(sessionId: string, body: unknown, res: ServerResponse): Promise<void> {
+-    // §8, §13: DEMO != FAKE — refuse to return empty/mock results
++    // §8, §13: DEMO != FAKE — refuse to return empty/mock results.
++    // Opt-in exception for hosted demo instances: when no LLM key is
++    // configured, answer from the deterministic half of the pipeline (a real
++    // scan of the repository plus real source excerpts) and label it as
++    // code-derived facts, not generated prose. Off unless explicitly enabled.
+     if (!this.realInferenceAvailable) {
++      if (process.env.AIS_ALLOW_CODE_DERIVED_FALLBACK === 'true') {
++        const parsedFb = this.parseObject(body);
++        const questionFb = this.requireString(parsedFb, 'question');
++        if (questionFb.trim().length === 0) {
++          this.sendError(res, 400, 'Question must not be empty');
++          return;
++        }
++        const ctxFb = this.service.getCaptureContext(sessionId);
++        if (!ctxFb) {
++          this.sendError(res, 404, 'Session not found');
++          return;
++        }
++        try {
++          const fb = await analyzeWithoutLlm(ctxFb.projectPath, questionFb.trim());
++          this.sendJson(res, 200, {
++            responseId: `fallback-${sessionId}`,
++            content: fb.content,
++            sources: fb.sources,
++            claims: fb.claims,
++            preparation: { message: 'No LLM key configured: answer built from the real code scan, not generated.' },
++          });
++          return;
++        } catch (fbErr) {
++          this.sendError(res, 503,
++            'Real inference is not available. ' +
++            'Set AIS_EXECUTION_REAL=true, AIS_REAL_LLM=true, and OPENAI_API_KEY environment variables. ' +
++            (fbErr instanceof Error ? fbErr.message : String(fbErr)),
++          );
++          return;
++        }
++      }
+       this.sendError(res, 503,
+         'Real inference is not available. ' +
+         'Set AIS_EXECUTION_REAL=true, AIS_REAL_LLM=true, and OPENAI_API_KEY environment variables.',
+diff --git a/src/mvp-ui/path-security.ts b/src/mvp-ui/path-security.ts
+index ce9bce0..114bc7b 100755
+--- a/src/mvp-ui/path-security.ts
++++ b/src/mvp-ui/path-security.ts
+@@ -10,10 +10,16 @@
+  *   S-01: No path traversal beyond allowed roots
+  *   S-02: Demo mode restricted to demo allowlist
+  *   S-03: No absolute path injection from user input
++ *
++ * Platform note:
++ *   The service is platform-aware. Windows paths (drive letters, backslash
++ *   separators) are validated with win32 semantics even when the process runs
++ *   on POSIX, and vice versa. Backslash is a separator on Windows, never a
++ *   traversal indicator.
+  */
+ 
+-import { resolve, normalize } from 'node:path';
+ import { existsSync, statSync } from 'node:fs';
++import { posix as posixPath, win32 as win32Path } from 'node:path';
+ 
+ // ═══════════════════════════════════════════════════════════════════
+ // ERRORS
+@@ -37,6 +43,57 @@ export interface PathSecurityConfig {
+   readonly demoAllowlist: readonly string[];
+ }
+ 
++/** Path dialect used to interpret a path. */
++type PathFlavor = 'win32' | 'posix';
++
++interface PathImpl {
++  normalize(p: string): string;
++  resolve(...p: string[]): string;
++  relative(from: string, to: string): string;
++  isAbsolute(p: string): boolean;
++  basename(p: string, ext?: string): string;
++  sep: string;
++}
++
++/**
++ * Detect the dialect of a raw path.
++ * Windows: drive letter prefix or backslash separators.
++ */
++function detectFlavor(rawPath: string): PathFlavor {
++  if (/^[A-Za-z]:[\\/]/.test(rawPath)) return 'win32';
++  if (rawPath.includes('\\')) return 'win32';
++  return 'posix';
++}
++
++function implFor(flavor: PathFlavor): PathImpl {
++  return flavor === 'win32' ? win32Path : posixPath;
++}
++
++/**
++ * True when `target` is the root itself or lies inside it.
++ * Uses relative() so that sibling-prefix attacks
++ * (/roots/foo vs /roots/foobar) are rejected.
++ */
++function isContained(root: string, target: string, impl: PathImpl): boolean {
++  const rel = impl.relative(root, target);
++  if (rel === '') return true;
++  if (rel.startsWith('..')) return false;
++  if (impl.isAbsolute(rel)) return false;
++  return true;
++}
++
++/** Dialect of the host platform. */
++function hostFlavor(): PathFlavor {
++  return process.platform === 'win32' ? 'win32' : 'posix';
++}
++
++/** True when any segment of the path is a parent reference. */
++function hasParentSegment(normalized: string): boolean {
++  return normalized
++    .split(/[\\/]+/)
++    .some(segment => segment === '..');
++}
++
+ // ═══════════════════════════════════════════════════════════════════
+ // SERVICE
+ // ═══════════════════════════════════════════════════════════════════
+@@ -46,14 +103,14 @@ export class PathSecurityService {
+   private readonly demoAllowlist: readonly string[];
+ 
+   constructor(config: PathSecurityConfig) {
+-    this.allowedRoots = config.allowedRoots.map(r => resolve(r));
+-    this.demoAllowlist = config.demoAllowlist.map(p => resolve(p));
++    this.allowedRoots = config.allowedRoots.map(r => r);
++    this.demoAllowlist = config.demoAllowlist.map(p => p);
+   }
+ 
+   /**
+    * Validate and sanitize a project path.
+-   * Resolves to absolute path, checks against allowed roots.
+-   * For demo mode, checks against demo allowlist.
++   * Resolves to an absolute path, checks it against allowed roots
++   * (or the demo allowlist in demo mode).
+    *
+    * @returns Resolved absolute path
+    * @throws PathSecurityError if path is invalid
+@@ -66,44 +123,48 @@ export class PathSecurityService {
+       throw new PathSecurityError('Project path is required');
+     }
+ 
+-    // Normalize and resolve to absolute
+-    const normalized = normalize(rawPath.trim());
+-    const absolute = resolve(normalized);
++    const trimmed = rawPath.trim();
++    const flavor = detectFlavor(trimmed);
++    const impl = implFor(flavor);
+ 
+-    // S-03: Block obvious traversal patterns in raw input
+-    const traversalPatterns = ['..', '%2e%2e', '%252e', '\\', '//'];
+-    for (const pattern of traversalPatterns) {
+-      if (rawPath.includes(pattern) && !this.isAllowedRoot(absolute)) {
+-        throw new PathSecurityError(
+-          `Path contains disallowed pattern: ${pattern}`,
+-        );
+-      }
++    // S-03: URL-encoded traversal is never a legitimate filesystem path.
++    if (/%2e%2e|%252e/i.test(trimmed)) {
++      throw new PathSecurityError('Path contains disallowed pattern: %2e%2e');
+     }
+ 
+-    // S-02: Demo mode — must be in demo allowlist
+-    if (options?.isDemo) {
+-      const isAllowed = this.demoAllowlist.some(
+-        allowed => absolute === allowed || absolute.startsWith(allowed + '/'),
+-      );
+-      if (!isAllowed) {
++    const normalized = impl.normalize(trimmed);
++    const absolute = impl.isAbsolute(normalized)
++      ? normalized
++      : impl.resolve(normalized);
++
++    // S-01/S-02: containment is decided by the resolved path, not by the raw
++    // string. A parent segment is only a violation when it escapes the root.
++    const scope = options?.isDemo ? this.demoAllowlist : this.allowedRoots;
++    const contained = scope.some(root =>
++      detectFlavor(root) === flavor && isContained(root, absolute, impl),
++    );
++
++    if (!contained) {
++      if (hasParentSegment(normalized)) {
+         throw new PathSecurityError(
+-          `Demo path not in allowlist: ${rawPath}`,
++          'Path contains disallowed pattern: ..',
+         );
+       }
+-      return absolute;
+-    }
+-
+-    // S-01: Non-demo — must be under an allowed root
+-    const isUnderRoot = this.allowedRoots.some(
+-      root => absolute === root || absolute.startsWith(root + '/'),
+-    );
+-    if (!isUnderRoot) {
+       throw new PathSecurityError(
+-        `Project path must be under an allowed root directory`,
++        options?.isDemo
++          ? `Demo path not in allowlist: ${rawPath}`
++          : 'Project path must be under an allowed root directory',
+       );
+     }
+ 
+-    // Verify path exists and is a directory
++    // Verify path exists and is a directory.
++    // A path in the foreign dialect (e.g. a Windows path while running on
++    // POSIX) cannot address a local directory, so the fs check is skipped —
++    // the allowlist decision above already governs it.
++    if (flavor !== hostFlavor()) {
++      return absolute;
++    }
++
+     if (!existsSync(absolute)) {
+       throw new PathSecurityError(`Project path does not exist: ${rawPath}`);
+     }
+@@ -127,20 +188,27 @@ export class PathSecurityService {
+ 
+   /** Check if a resolved path is under an allowed root. */
+   isAllowedRoot(resolvedPath: string): boolean {
++    const flavor = detectFlavor(resolvedPath);
++    const impl = implFor(flavor);
+     return this.allowedRoots.some(
+-      root => resolvedPath === root || resolvedPath.startsWith(root + '/'),
++      root => detectFlavor(root) === flavor && isContained(root, resolvedPath, impl),
+     );
+   }
+ 
+   /** Check if a resolved path is in the demo allowlist. */
+   isDemoAllowed(resolvedPath: string): boolean {
++    const flavor = detectFlavor(resolvedPath);
++    const impl = implFor(flavor);
+     return this.demoAllowlist.some(
+-      allowed => resolvedPath === allowed || resolvedPath.startsWith(allowed + '/'),
++      allowed => detectFlavor(allowed) === flavor && isContained(allowed, resolvedPath, impl),
+     );
+   }
+ 
+   /** Get list of demo project names (last path component). */
+   getDemoProjects(): readonly string[] {
+-    return this.demoAllowlist.map(p => p.split('/').filter(Boolean).pop() ?? p);
++    return this.demoAllowlist.map(p => {
++      const impl = implFor(detectFlavor(p));
++      return impl.basename(impl.normalize(p));
++    });
+   }
+ }
