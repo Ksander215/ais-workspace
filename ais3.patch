@@ -1,0 +1,652 @@
+diff --git a/src/__tests__/core/discovery/symlink-dedup.test.ts b/src/__tests__/core/discovery/symlink-dedup.test.ts
+new file mode 100644
+index 0000000..ad46c6e
+--- /dev/null
++++ b/src/__tests__/core/discovery/symlink-dedup.test.ts
+@@ -0,0 +1,46 @@
++import { describe, expect, it } from 'vitest';
++import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++
++import { DiscoveryPipelineService } from '../../../core/discovery/discovery-pipeline.service.js';
++
++/**
++ * A repository that symlinks shared files — a common pattern (AGENTS.md,
++ * CLAUDE.md, shared skills). Following the link counts the target twice.
++ */
++function makeRepoWithSymlinks(): { root: string; target: string } {
++  const root = mkdtempSync(join(tmpdir(), 'ais-symlink-'));
++  mkdirSync(join(root, 'src'), { recursive: true });
++  mkdirSync(join(root, 'shared'), { recursive: true });
++
++  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true }));
++  writeFileSync(join(root, 'src', 'index.ts'), 'export const x = 1;\n');
++  writeFileSync(join(root, 'shared', 'AGENTS.md'), '# shared\n');
++
++  // A symlink to a file and a symlink to a directory.
++  symlinkSync(join(root, 'shared', 'AGENTS.md'), join(root, 'AGENTS.md'));
++  symlinkSync(join(root, 'shared'), join(root, 'linked-shared'));
++
++  return { root, target: join(root, 'shared', 'AGENTS.md') };
++}
++
++describe('discovery — symlink handling', () => {
++  it('does not count a symlinked file twice', async () => {
++    const { root, target } = makeRepoWithSymlinks();
++    const service = new DiscoveryPipelineService({ rootPath: root });
++    await service.initialize();
++    await service.start();
++    const { discovery: result } = await service.discover('test');
++
++    const paths = result.files.map((f) => f.relativePath);
++    // The link is listed once, the target once — not the target twice.
++    const agentPaths = paths.filter((p) => p === 'AGENTS.md' || p === 'shared/AGENTS.md');
++    expect(agentPaths).toHaveLength(2);
++    expect(paths).toContain('AGENTS.md');
++    expect(paths).toContain('shared/AGENTS.md');
++    expect(paths).not.toContain('linked-shared/AGENTS.md');
++    expect(result.totalFiles).toBe(new Set(paths).size);
++    expect(result.totalFiles).toBeLessThan(6);
++  }, 60_000);
++});
+diff --git a/src/__tests__/core/discovery/tech-stack-languages.test.ts b/src/__tests__/core/discovery/tech-stack-languages.test.ts
+new file mode 100644
+index 0000000..fa3290f
+--- /dev/null
++++ b/src/__tests__/core/discovery/tech-stack-languages.test.ts
+@@ -0,0 +1,59 @@
++import { describe, expect, it } from 'vitest';
++import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++
++import { DiscoveryPipelineService } from '../../../core/discovery/discovery-pipeline.service.js';
++
++/**
++ * A repo whose real stack is TypeScript + Python + Swift. Config-file
++ * detection alone sees only TypeScript, so the native and Python parts of the
++ * stack stay invisible in the tech stack report.
++ */
++function makeMixedStackRepo(): string {
++  const root = mkdtempSync(join(tmpdir(), 'ais-techstack-'));
++  mkdirSync(join(root, 'src'), { recursive: true });
++  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true }));
++  writeFileSync(join(root, 'src', 'index.ts'), 'export const x = 1;\n');
++
++  mkdirSync(join(root, 'py'), { recursive: true });
++  for (let i = 0; i < 4; i++) {
++    writeFileSync(join(root, 'py', `mod-${i}.py`), 'def f():\n    return 1\n');
++  }
++
++  mkdirSync(join(root, 'native'), { recursive: true });
++  for (let i = 0; i < 4; i++) {
++    writeFileSync(join(root, 'native', `file-${i}.swift`), 'func f() {}\n');
++  }
++  return root;
++}
++
++describe('discovery — tech stack languages', () => {
++  it('detects languages that no config file declares', async () => {
++    const root = makeMixedStackRepo();
++    const service = new DiscoveryPipelineService({ rootPath: root });
++    await service.initialize();
++    await service.start();
++    const { discovery: result } = await service.discover('test');
++
++    const names = result.techStack.map((t) => t.name);
++    expect(names).toContain('TypeScript');
++    expect(names).toContain('Python');
++    expect(names).toContain('Swift');
++  }, 60_000);
++
++  it('ignores a language that appears only once', async () => {
++    const root = mkdtempSync(join(tmpdir(), 'ais-techstack-noise-'));
++    mkdirSync(join(root, 'src'), { recursive: true });
++    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true }));
++    writeFileSync(join(root, 'src', 'index.ts'), 'export const x = 1;\n');
++    writeFileSync(join(root, 'src', 'build.py'), 'x = 1\n');
++
++    const service = new DiscoveryPipelineService({ rootPath: root });
++    await service.initialize();
++    await service.start();
++    const { discovery: result } = await service.discover('test');
++
++    expect(result.techStack.map((t) => t.name)).not.toContain('Python');
++  }, 60_000);
++});
+diff --git a/src/__tests__/mvp-ui/fallback-analysis-units.test.ts b/src/__tests__/mvp-ui/fallback-analysis-units.test.ts
+new file mode 100644
+index 0000000..1f1ff0a
+--- /dev/null
++++ b/src/__tests__/mvp-ui/fallback-analysis-units.test.ts
+@@ -0,0 +1,93 @@
++import { describe, expect, it } from 'vitest';
++import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++
++import { analyzeWithoutLlm } from '../../mvp-ui/fallback-analysis.js';
++
++/**
++ * A workspace with real packages plus the directories that used to be
++ * mistaken for them: agent notes, docs and snapshots. Those are large, they
++ * are not code, and they must not show up as workspace units.
++ */
++function makeRepoWithArtifacts(): string {
++  const root = mkdtempSync(join(tmpdir(), 'ais-units-'));
++  const pkgA = join(root, 'packages', 'alpha');
++  mkdirSync(join(pkgA, 'src'), { recursive: true });
++  mkdirSync(join(root, 'docs', 'guides'), { recursive: true });
++  mkdirSync(join(root, '.agents', 'notes'), { recursive: true });
++  mkdirSync(join(root, 'snapshots', 'session'), { recursive: true });
++
++  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'root', private: true }));
++  writeFileSync(
++    join(pkgA, 'package.json'),
++    JSON.stringify({ name: '@acme/alpha', version: '0.1.0' }),
++  );
++  writeFileSync(join(pkgA, 'src', 'index.ts'), 'export const alpha = 1;\n');
++
++  // Artifacts: many files, no manifest, no code.
++  for (let i = 0; i < 5; i++) {
++    writeFileSync(join(root, '.agents', 'notes', `note-${i}.md`), '# note\n');
++    writeFileSync(join(root, 'docs', 'guides', `guide-${i}.md`), '# guide\n');
++    writeFileSync(join(root, 'snapshots', 'session', `snap-${i}.json`), '{}\n');
++  }
++  return root;
++}
++
++describe('fallback analysis — workspace unit map', () => {
++  it('counts workspace packages, not every directory with files', async () => {
++    const root = makeRepoWithArtifacts();
++    const result = await analyzeWithoutLlm(root, 'Which modules exist?');
++
++    // One real package (packages/alpha). The root manifest is not a unit.
++    expect(result.content).toContain('Workspace packages (1 total');
++
++    // The artifacts must not appear in the PACKAGE list — they belong to the
++    // separate "outside the workspace packages" section.
++    const packagesSection = result.content.slice(
++      result.content.indexOf('Workspace packages ('),
++      result.content.indexOf('Directories outside the workspace packages'),
++    );
++    expect(packagesSection).not.toContain('.agents');
++    expect(packagesSection).not.toContain('docs');
++    expect(packagesSection).not.toContain('snapshots');
++    expect(packagesSection).toContain('packages/alpha');
++  }, 60_000);
++
++  it('reports directories outside the workspace packages separately', async () => {
++    const root = makeRepoWithArtifacts();
++    const result = await analyzeWithoutLlm(root, 'Which modules exist?');
++
++    expect(result.content).toContain('Directories outside the workspace packages');
++    // The artifacts are still visible — just not counted as packages.
++    expect(result.content).toContain('.agents');
++  }, 60_000);
++
++  it('states the limits of the deterministic mode', async () => {
++    const root = makeRepoWithArtifacts();
++    const result = await analyzeWithoutLlm(root, 'Which claims are supported by evidence and which are inference?');
++
++    expect(result.content).toContain('What this answer is, and is not');
++    expect(result.content).toMatch(/cannot separate what the repository proves/);
++    expect(result.content).toMatch(/does not use git history/);
++    expect(result.content).toMatch(/keyword match, not an answer/);
++  }, 60_000);
++
++  it('does not mark a keyword match as a verified claim', async () => {
++    const root = makeRepoWithArtifacts();
++    const result = await analyzeWithoutLlm(root, 'How does the alpha module orchestrate execution?');
++
++    const scanFacts = result.claims.filter((c) => c.kind === 'scan-fact');
++    const lexical = result.claims.filter((c) => c.kind === 'lexical-match');
++
++    // The measured facts of the scan are verified...
++    expect(scanFacts.length).toBeGreaterThan(0);
++    for (const claim of scanFacts) expect(claim.isVerified).toBe(true);
++
++    // ...a retrieved file is not a verified conclusion about the project.
++    for (const claim of lexical) {
++      expect(claim.isVerified).toBe(false);
++      expect(claim.statement).toMatch(/mentions the question terms/);
++    }
++  }, 60_000);
++});
+diff --git a/src/core/discovery/discovery-pipeline.service.ts b/src/core/discovery/discovery-pipeline.service.ts
+index 676ca9a..ed73c74 100755
+--- a/src/core/discovery/discovery-pipeline.service.ts
++++ b/src/core/discovery/discovery-pipeline.service.ts
+@@ -43,7 +43,7 @@ import type {
+ } from './discovery-types.js';
+ import { DefaultDiscoveryConfig } from './discovery-types.js';
+ 
+-import { readdirSync, statSync, readFileSync } from 'node:fs';
++import { readdirSync, statSync, lstatSync, readFileSync } from 'node:fs';
+ import { join, relative, extname, basename, dirname } from 'node:path';
+ 
+ /**
+@@ -198,7 +198,27 @@ export class DiscoveryPipelineService implements Service {
+       }
+ 
+       try {
+-        const stat = statSync(fullPath);
++        // lstat, not stat: a symlink to a directory must NOT be walked into.
++        // Repositories symlink shared files (AGENTS.md, .claude/skills) and
++        // following them counts the same file twice, inflating the file count
++        // and the module map with entries that exist in one place only.
++        const lstat = lstatSync(fullPath);
++
++        if (lstat.isSymbolicLink()) {
++          // Record the link itself, but do not traverse its target.
++          if (files.length < this._config.maxFiles) {
++            files.push({
++              path: fullPath,
++              relativePath: relPath,
++              extension: extname(entry),
++              size: lstat.size,
++              lastModified: lstat.mtime.toISOString(),
++            });
++          }
++          continue;
++        }
++
++        const stat = lstat;
+ 
+         if (stat.isDirectory()) {
+           this.walkDirectory(fullPath, rootPath, files, depth + 1);
+@@ -401,6 +421,42 @@ export class DiscoveryPipelineService implements Service {
+       }
+     }
+ 
++    // Languages other than TypeScript are still part of the stack. Config-file
++    // detection alone misses them: a repository with 57 Python files and no
++    // pyproject.toml looks like a TypeScript-only project, and native code
++    // (Swift, C, C++) never shows up in a package.json at all.
++    const LANGUAGE_BY_EXTENSION: ReadonlyArray<[string, string]> = [
++      ['.py', 'Python'],
++      ['.swift', 'Swift'],
++      ['.go', 'Go'],
++      ['.rs', 'Rust'],
++      ['.java', 'Java'],
++      ['.kt', 'Kotlin'],
++      ['.rb', 'Ruby'],
++      ['.php', 'PHP'],
++      ['.c', 'C'],
++      ['.h', 'C'],
++      ['.cc', 'C++'],
++      ['.cpp', 'C++'],
++      ['.hpp', 'C++'],
++      ['.cs', 'C#'],
++      ['.m', 'Objective-C'],
++      ['.mm', 'Objective-C++'],
++    ];
++    // A handful of files is noise (a vendored snippet, a build script). A
++    // language is part of the stack once it is used consistently.
++    const MIN_FILES_FOR_LANGUAGE = 3;
++    const counts = new Map<string, number>();
++    for (const file of files) {
++      const language = LANGUAGE_BY_EXTENSION.find(([ext]) => ext === file.extension)?.[1];
++      if (!language) continue;
++      counts.set(language, (counts.get(language) ?? 0) + 1);
++    }
++    for (const [language, count] of counts) {
++      if (count < MIN_FILES_FOR_LANGUAGE) continue;
++      addTech({ name: language, category: 'language', version: null, evidence: `${count} ${language} source file(s)` });
++    }
++
+     return Object.freeze(tech);
+   }
+ 
+diff --git a/src/core/discovery/discovery-types.ts b/src/core/discovery/discovery-types.ts
+index 9f5a5b0..852d6d8 100755
+--- a/src/core/discovery/discovery-types.ts
++++ b/src/core/discovery/discovery-types.ts
+@@ -88,16 +88,6 @@ export interface DiscoveryConfig {
+ /**
+  * Default discovery configuration.
+  */
+-/**
+- * Default discovery configuration.
+- *
+- * The exclusion list only removes vendor and build output. Project source
+- * directories (`packages`, `backend`, `src`, `apps`, …) are NOT excluded by
+- * default: in most repositories — every monorepo in particular — that is
+- * where the code lives, and excluding it leaves AIS with an empty graph.
+- * Deployments that need the previous, AIS-workspace-specific list can restore
+- * it with `AIS_DISCOVERY_EXCLUDE`.
+- */
+ export const DefaultDiscoveryConfig: DiscoveryConfig = {
+   rootPath: '.',
+   excludePatterns: [
+@@ -110,6 +100,16 @@ export const DefaultDiscoveryConfig: DiscoveryConfig = {
+     '.cache',
+     'frames',
+     '__tests__',
++    // TASK-MVP-FREE-QUALITY-GATE-001: Exclude non-core project directories
++    // that pollute the ArchitectureGraph and cause false keyword matches
++    // in findRelevantNodes() (e.g., "evidence" matching landing.app.evidence).
++    'landing',
++    'backend',
++    'docs',
++    'scripts',
++    'plugins',
++    'packages',
++    'skills',
+   ],
+   maxDepth: 10,
+   maxFiles: 10000,
+diff --git a/src/mvp-ui/fallback-analysis.ts b/src/mvp-ui/fallback-analysis.ts
+index e5f2ad9..a21a91e 100644
+--- a/src/mvp-ui/fallback-analysis.ts
++++ b/src/mvp-ui/fallback-analysis.ts
+@@ -26,7 +26,22 @@ export interface FallbackSource {
+ export interface FallbackAnswer {
+   content: string;
+   sources: FallbackSource[];
+-  claims: Array<{ statement: string; isVerified: boolean; evidenceCount: number }>;
++  claims: Array<{
++    statement: string;
++    isVerified: boolean;
++    evidenceCount: number;
++    /**
++     * What kind of statement this is.
++     *
++     * `scan-fact` — measured by the scan itself (file counts, tech stack).
++     *   Verified: the pipeline computed it and can show the evidence.
++     * `lexical-match` — a file was retrieved because it contains the
++     *   question's terms. This is NOT a conclusion about the project, so it
++     *   is not a verified claim; presenting it as one is exactly the kind of
++     *   false guarantee the evidence protocol forbids.
++     */
++    kind?: 'scan-fact' | 'lexical-match';
++  }>;
+ }
+ 
+ /**
+@@ -141,23 +156,6 @@ function extractSnippet(
+   };
+ }
+ 
+-/**
+- * Workspace unit of a file: the meaningful container of a monorepo.
+- *
+- * Directory-level modules are too granular to be useful on their own
+- * (a pnpm workspace easily has 1 200 of them, mostly test folders), so the
+- * unit is the workspace package: `packages/<name>`, `apps/<name>`, or the
+- * top-level directory when the repo is not a workspace.
+- */
+-function workspaceUnit(relativePath: string): string {
+-  const parts = relativePath.split('/');
+-  if (parts.length === 1) return '.';
+-  if (['packages', 'apps', 'crates', 'libs', 'services', 'modules'].includes(parts[0])) {
+-    return parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
+-  }
+-  return parts[0];
+-}
+-
+ /** A workspace unit with its file counts and entry point. */
+ interface UnitSummary {
+   unit: string;
+@@ -178,8 +176,12 @@ interface UnitSummary {
+ function readWorkspaceManifests(
+   projectPath: string,
+   files: ReadonlyArray<{ relativePath: string }>,
+-): Map<string, { unit: string; dependencies: string[] }> {
++): {
++  manifests: Map<string, { unit: string; dependencies: string[] }>;
++  packageDirs: Set<string>;
++} {
+   const manifests = new Map<string, { unit: string; dependencies: string[] }>();
++  const packageDirs = new Set<string>();
+   for (const file of files) {
+     if (!file.relativePath.endsWith('package.json')) continue;
+     if (file.relativePath.split('/').length < 2) continue; // root manifest
+@@ -190,40 +192,54 @@ function readWorkspaceManifests(
+     } catch {
+       continue;
+     }
+-    if (!parsed.name) continue;
+     const dir = file.relativePath.slice(0, file.relativePath.length - 'package.json'.length).replace(/\/$/, '');
++    // Every directory that carries a manifest is a workspace package, even if
++    // it has no name: the count of units must match the repository, not the
++    // count of named packages.
++    packageDirs.add(dir);
++    if (!parsed.name) continue;
+     const deps = [
+       ...Object.keys(parsed.dependencies ?? {}),
+       ...Object.keys(parsed.devDependencies ?? {}),
+     ];
+     manifests.set(parsed.name, { unit: dir, dependencies: deps });
+   }
+-  return manifests;
++  return { manifests, packageDirs };
+ }
+ 
+ /** Aggregates discovered files into workspace units. */
+ function summarizeUnits(
+   files: ReadonlyArray<{ relativePath: string }>,
+-  manifests: Map<string, { unit: string; dependencies: string[] }>,
+-): UnitSummary[] {
+-  const packageDirs = [...manifests.values()]
+-    .map((m) => m.unit)
+-    .filter((d) => d.length > 0)
+-    .sort((a, b) => b.length - a.length);
+-  const unitFor = (path: string): string => {
+-    for (const dir of packageDirs) {
++  packageDirs: ReadonlySet<string>,
++): { packages: UnitSummary[]; otherDirectories: UnitSummary[] } {
++  const dirs = [...packageDirs].filter((d) => d.length > 0).sort((a, b) => b.length - a.length);
++  const owningPackage = (path: string): string | undefined => {
++    for (const dir of dirs) {
+       if (path === dir || path.startsWith(`${dir}/`)) return dir;
+     }
+-    return workspaceUnit(path);
++    return undefined;
+   };
+ 
+-  const map = new Map<string, UnitSummary>();
++  const packages = new Map<string, UnitSummary>();
++  const otherDirectories = new Map<string, UnitSummary>();
++
+   for (const file of files) {
+-    const unit = unitFor(file.relativePath);
+-    let entry = map.get(unit);
++    const owner = owningPackage(file.relativePath);
++    // A file outside every workspace package belongs to a plain directory.
++    // Those directories are real, but they are NOT workspace units, and
++    // mixing them into the unit list inflates the count and buries real
++    // packages under documentation, notes and snapshots.
++    const unit =
++      owner ??
++      (file.relativePath.includes('/')
++        ? file.relativePath.slice(0, file.relativePath.indexOf('/'))
++        : '.');
++    const bucket = owner ? packages : otherDirectories;
++
++    let entry = bucket.get(unit);
+     if (!entry) {
+       entry = { unit, fileCount: 0, sourceFileCount: 0, testFileCount: 0 };
+-      map.set(unit, entry);
++      bucket.set(unit, entry);
+     }
+     entry.fileCount += 1;
+     const base = file.relativePath.split('/').pop() ?? '';
+@@ -236,9 +252,13 @@ function summarizeUnits(
+       entry.entryPoint = file.relativePath;
+     }
+   }
+-  return [...map.values()].sort(
+-    (a, b) => b.sourceFileCount - a.sourceFileCount || b.fileCount - a.fileCount,
+-  );
++
++  const bySize = (a: UnitSummary, b: UnitSummary): number =>
++    b.sourceFileCount - a.sourceFileCount || b.fileCount - a.fileCount;
++  return {
++    packages: [...packages.values()].sort(bySize),
++    otherDirectories: [...otherDirectories.values()].sort(bySize),
++  };
+ }
+ 
+ /**
+@@ -249,6 +269,7 @@ function summarizeUnitDependencies(
+   dependencies: ReadonlyArray<{ from: string; to: string; type: string }>,
+   files: ReadonlyArray<{ relativePath: string }>,
+   manifests: Map<string, { unit: string; dependencies: string[] }>,
++  packageDirs: ReadonlySet<string>,
+ ): {
+   fileEdges: Array<{ from: string; to: string; count: number; types: string[] }>;
+   manifestEdges: Array<{ from: string; to: string; count: number }>;
+@@ -256,16 +277,15 @@ function summarizeUnitDependencies(
+   const known = new Set(files.map((f) => f.relativePath));
+   // Package directories, longest first, so a file maps to its own package
+   // rather than to a broader workspace folder.
+-  const packageDirs = [...manifests.values()]
+-    .map((m) => m.unit)
+-    .filter((d) => d.length > 0)
+-    .sort((a, b) => b.length - a.length);
++  const dirs = [...packageDirs].filter((d) => d.length > 0).sort((a, b) => b.length - a.length);
+ 
+   const unitFor = (path: string): string => {
+-    for (const dir of packageDirs) {
++    for (const dir of dirs) {
+       if (path === dir || path.startsWith(`${dir}/`)) return dir;
+     }
+-    return workspaceUnit(path);
++    // Outside every package: the plain directory is still a real container of
++    // code (scripts/, native/), so it keeps its name in the graph.
++    return path.includes('/') ? path.slice(0, path.indexOf('/')) : '.';
+   };
+ 
+   const counts = new Map<string, { from: string; to: string; count: number; types: Set<string> }>();
+@@ -339,7 +359,26 @@ export async function analyzeWithoutLlm(
+   projectPath: string,
+   question: string,
+ ): Promise<FallbackAnswer> {
+-  const discovery = new DiscoveryPipelineService({ rootPath: projectPath });
++  // The core discovery defaults are tuned for the AIS workspace and skip
++  // `packages`, `backend`, `docs` and friends. That is right for the graph
++  // AIS builds about itself, but wrong for a repository we are analysing:
++  // in most monorepos the code lives exactly there. The fallback therefore
++  // scans the source tree with only vendor/build output excluded.
++  // `AIS_DISCOVERY_EXCLUDE` still overrides this when it is set.
++  const discovery = new DiscoveryPipelineService({
++    rootPath: projectPath,
++    excludePatterns: [
++      'node_modules',
++      '.git',
++      'dist',
++      'build',
++      '.next',
++      'coverage',
++      '.cache',
++      'frames',
++      '__tests__',
++    ],
++  });
+   await discovery.initialize();
+   await discovery.start();
+   const { discovery: result } = await discovery.discover('fallback');
+@@ -409,8 +448,8 @@ export async function analyzeWithoutLlm(
+   const tech = result.techStack.map((t) => t.name).join(', ') || 'not detected';
+ 
+   // Workspace packages — the level a human reads a monorepo at.
+-  const manifests = readWorkspaceManifests(projectPath, result.files);
+-  const units = summarizeUnits(result.files, manifests);
++  const { manifests, packageDirs } = readWorkspaceManifests(projectPath, result.files);
++  const { packages: units, otherDirectories } = summarizeUnits(result.files, packageDirs);
+   const modules = units
+     .slice(0, 15)
+     .map(
+@@ -420,12 +459,17 @@ export async function analyzeWithoutLlm(
+         (u.entryPoint ? `, entry: ${u.entryPoint}` : ''),
+     )
+     .join('\n');
++  const otherDirs = otherDirectories
++    .slice(0, 8)
++    .map((u) => `  • ${u.unit} — ${u.sourceFileCount} source file(s)`)
++    .join('\n');
+ 
+   // Dependency edges between workspace units — real, extracted relations.
+   const { fileEdges, manifestEdges } = summarizeUnitDependencies(
+     result.dependencies,
+     result.files,
+     manifests,
++    packageDirs,
+   );
+   const depEdges = fileEdges
+     .slice(0, 15)
+@@ -458,6 +502,21 @@ export async function analyzeWithoutLlm(
+         .join('\n\n')
+     : '(no source file mentions the question terms)';
+ 
++  // Limits of this mode, stated by the answer itself.
++  //
++  // The deterministic path measures the repository. It cannot reason about it.
++  // Saying so is part of the answer: without this, a keyword-matched excerpt
++  // reads like an answer to a question it does not answer, and the reader
++  // cannot tell evidence from inference.
++  const limits = [
++    'This mode derives FACTS from the code scan. It does not generate an',
++    'argument, so it cannot separate what the repository proves from what a',
++    'reader might infer — that separation requires a language model.',
++    'It also reads a static snapshot: it does not use git history, so it',
++    'cannot tell current code from historical or deprecated code.',
++    'Every excerpt below is a keyword match, not an answer to the question.',
++  ].join('\n');
++
+   const content = [
+     'code-derived facts (no LLM)',
+     '',
+@@ -467,13 +526,19 @@ export async function analyzeWithoutLlm(
+     'deterministic part of the pipeline: it scanned the project, built the module map',
+     'and matched your question against the real source files. No prose was generated.',
+     '',
++    'What this answer is, and is not:',
++    limits,
++    '',
+     `Files scanned: ${result.totalFiles} (${result.totalSize} bytes)`,
+     `Tech stack: ${tech}`,
+     `Entry points: ${result.entryPoints.slice(0, 5).join(', ') || 'n/a'}`,
+     '',
+-    `Workspace units (${units.length} total, top ${Math.min(15, units.length)} by source files):`,
++    `Workspace packages (${units.length} total, top ${Math.min(15, units.length)} by source files):`,
+     modules || '  • none',
+     '',
++    `Directories outside the workspace packages (top ${Math.min(8, otherDirectories.length)} by source files):`,
++    otherDirs || '  • none',
++    '',
+     `Dependency edges between units (file-level imports, top ${Math.min(15, fileEdges.length)}):`,
+     depEdges || '  • none detected',
+     '',
+@@ -491,19 +556,27 @@ export async function analyzeWithoutLlm(
+ 
+   const claims = [
+     {
+-      statement: `The project contains ${result.totalFiles} files across ${units.length} workspace units.`,
++      statement: `The project contains ${result.totalFiles} files across ${units.length} workspace packages.`,
++      // The scan counted these itself, so the number is a measured fact.
+       isVerified: true,
+       evidenceCount: top.length,
++      kind: 'scan-fact' as const,
+     },
+     {
+       statement: `Detected tech stack: ${tech}.`,
+       isVerified: true,
+       evidenceCount: top.length,
++      kind: 'scan-fact' as const,
+     },
+     ...top.map((s) => ({
+       statement: `${s.filePath} mentions the question terms.`,
+-      isVerified: true,
++      // The file was retrieved because it contains the terms. That is a
++      // retrieval hit, not a conclusion about the project: nothing here
++      // verifies that the file answers the question. Marking it as a
++      // verified claim would be a false guarantee.
++      isVerified: false,
+       evidenceCount: 1,
++      kind: 'lexical-match' as const,
+     })),
+   ];
+ 

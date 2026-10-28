@@ -26,7 +26,22 @@ export interface FallbackSource {
 export interface FallbackAnswer {
   content: string;
   sources: FallbackSource[];
-  claims: Array<{ statement: string; isVerified: boolean; evidenceCount: number }>;
+  claims: Array<{
+    statement: string;
+    isVerified: boolean;
+    evidenceCount: number;
+    /**
+     * What kind of statement this is.
+     *
+     * `scan-fact` — measured by the scan itself (file counts, tech stack).
+     *   Verified: the pipeline computed it and can show the evidence.
+     * `lexical-match` — a file was retrieved because it contains the
+     *   question's terms. This is NOT a conclusion about the project, so it
+     *   is not a verified claim; presenting it as one is exactly the kind of
+     *   false guarantee the evidence protocol forbids.
+     */
+    kind?: 'scan-fact' | 'lexical-match';
+  }>;
 }
 
 /**
@@ -141,23 +156,6 @@ function extractSnippet(
   };
 }
 
-/**
- * Workspace unit of a file: the meaningful container of a monorepo.
- *
- * Directory-level modules are too granular to be useful on their own
- * (a pnpm workspace easily has 1 200 of them, mostly test folders), so the
- * unit is the workspace package: `packages/<name>`, `apps/<name>`, or the
- * top-level directory when the repo is not a workspace.
- */
-function workspaceUnit(relativePath: string): string {
-  const parts = relativePath.split('/');
-  if (parts.length === 1) return '.';
-  if (['packages', 'apps', 'crates', 'libs', 'services', 'modules'].includes(parts[0])) {
-    return parts.length > 1 ? `${parts[0]}/${parts[1]}` : parts[0];
-  }
-  return parts[0];
-}
-
 /** A workspace unit with its file counts and entry point. */
 interface UnitSummary {
   unit: string;
@@ -178,8 +176,12 @@ interface UnitSummary {
 function readWorkspaceManifests(
   projectPath: string,
   files: ReadonlyArray<{ relativePath: string }>,
-): Map<string, { unit: string; dependencies: string[] }> {
+): {
+  manifests: Map<string, { unit: string; dependencies: string[] }>;
+  packageDirs: Set<string>;
+} {
   const manifests = new Map<string, { unit: string; dependencies: string[] }>();
+  const packageDirs = new Set<string>();
   for (const file of files) {
     if (!file.relativePath.endsWith('package.json')) continue;
     if (file.relativePath.split('/').length < 2) continue; // root manifest
@@ -190,40 +192,54 @@ function readWorkspaceManifests(
     } catch {
       continue;
     }
-    if (!parsed.name) continue;
     const dir = file.relativePath.slice(0, file.relativePath.length - 'package.json'.length).replace(/\/$/, '');
+    // Every directory that carries a manifest is a workspace package, even if
+    // it has no name: the count of units must match the repository, not the
+    // count of named packages.
+    packageDirs.add(dir);
+    if (!parsed.name) continue;
     const deps = [
       ...Object.keys(parsed.dependencies ?? {}),
       ...Object.keys(parsed.devDependencies ?? {}),
     ];
     manifests.set(parsed.name, { unit: dir, dependencies: deps });
   }
-  return manifests;
+  return { manifests, packageDirs };
 }
 
 /** Aggregates discovered files into workspace units. */
 function summarizeUnits(
   files: ReadonlyArray<{ relativePath: string }>,
-  manifests: Map<string, { unit: string; dependencies: string[] }>,
-): UnitSummary[] {
-  const packageDirs = [...manifests.values()]
-    .map((m) => m.unit)
-    .filter((d) => d.length > 0)
-    .sort((a, b) => b.length - a.length);
-  const unitFor = (path: string): string => {
-    for (const dir of packageDirs) {
+  packageDirs: ReadonlySet<string>,
+): { packages: UnitSummary[]; otherDirectories: UnitSummary[] } {
+  const dirs = [...packageDirs].filter((d) => d.length > 0).sort((a, b) => b.length - a.length);
+  const owningPackage = (path: string): string | undefined => {
+    for (const dir of dirs) {
       if (path === dir || path.startsWith(`${dir}/`)) return dir;
     }
-    return workspaceUnit(path);
+    return undefined;
   };
 
-  const map = new Map<string, UnitSummary>();
+  const packages = new Map<string, UnitSummary>();
+  const otherDirectories = new Map<string, UnitSummary>();
+
   for (const file of files) {
-    const unit = unitFor(file.relativePath);
-    let entry = map.get(unit);
+    const owner = owningPackage(file.relativePath);
+    // A file outside every workspace package belongs to a plain directory.
+    // Those directories are real, but they are NOT workspace units, and
+    // mixing them into the unit list inflates the count and buries real
+    // packages under documentation, notes and snapshots.
+    const unit =
+      owner ??
+      (file.relativePath.includes('/')
+        ? file.relativePath.slice(0, file.relativePath.indexOf('/'))
+        : '.');
+    const bucket = owner ? packages : otherDirectories;
+
+    let entry = bucket.get(unit);
     if (!entry) {
       entry = { unit, fileCount: 0, sourceFileCount: 0, testFileCount: 0 };
-      map.set(unit, entry);
+      bucket.set(unit, entry);
     }
     entry.fileCount += 1;
     const base = file.relativePath.split('/').pop() ?? '';
@@ -236,9 +252,13 @@ function summarizeUnits(
       entry.entryPoint = file.relativePath;
     }
   }
-  return [...map.values()].sort(
-    (a, b) => b.sourceFileCount - a.sourceFileCount || b.fileCount - a.fileCount,
-  );
+
+  const bySize = (a: UnitSummary, b: UnitSummary): number =>
+    b.sourceFileCount - a.sourceFileCount || b.fileCount - a.fileCount;
+  return {
+    packages: [...packages.values()].sort(bySize),
+    otherDirectories: [...otherDirectories.values()].sort(bySize),
+  };
 }
 
 /**
@@ -249,6 +269,7 @@ function summarizeUnitDependencies(
   dependencies: ReadonlyArray<{ from: string; to: string; type: string }>,
   files: ReadonlyArray<{ relativePath: string }>,
   manifests: Map<string, { unit: string; dependencies: string[] }>,
+  packageDirs: ReadonlySet<string>,
 ): {
   fileEdges: Array<{ from: string; to: string; count: number; types: string[] }>;
   manifestEdges: Array<{ from: string; to: string; count: number }>;
@@ -256,16 +277,15 @@ function summarizeUnitDependencies(
   const known = new Set(files.map((f) => f.relativePath));
   // Package directories, longest first, so a file maps to its own package
   // rather than to a broader workspace folder.
-  const packageDirs = [...manifests.values()]
-    .map((m) => m.unit)
-    .filter((d) => d.length > 0)
-    .sort((a, b) => b.length - a.length);
+  const dirs = [...packageDirs].filter((d) => d.length > 0).sort((a, b) => b.length - a.length);
 
   const unitFor = (path: string): string => {
-    for (const dir of packageDirs) {
+    for (const dir of dirs) {
       if (path === dir || path.startsWith(`${dir}/`)) return dir;
     }
-    return workspaceUnit(path);
+    // Outside every package: the plain directory is still a real container of
+    // code (scripts/, native/), so it keeps its name in the graph.
+    return path.includes('/') ? path.slice(0, path.indexOf('/')) : '.';
   };
 
   const counts = new Map<string, { from: string; to: string; count: number; types: Set<string> }>();
@@ -339,7 +359,26 @@ export async function analyzeWithoutLlm(
   projectPath: string,
   question: string,
 ): Promise<FallbackAnswer> {
-  const discovery = new DiscoveryPipelineService({ rootPath: projectPath });
+  // The core discovery defaults are tuned for the AIS workspace and skip
+  // `packages`, `backend`, `docs` and friends. That is right for the graph
+  // AIS builds about itself, but wrong for a repository we are analysing:
+  // in most monorepos the code lives exactly there. The fallback therefore
+  // scans the source tree with only vendor/build output excluded.
+  // `AIS_DISCOVERY_EXCLUDE` still overrides this when it is set.
+  const discovery = new DiscoveryPipelineService({
+    rootPath: projectPath,
+    excludePatterns: [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      '.next',
+      'coverage',
+      '.cache',
+      'frames',
+      '__tests__',
+    ],
+  });
   await discovery.initialize();
   await discovery.start();
   const { discovery: result } = await discovery.discover('fallback');
@@ -409,8 +448,8 @@ export async function analyzeWithoutLlm(
   const tech = result.techStack.map((t) => t.name).join(', ') || 'not detected';
 
   // Workspace packages — the level a human reads a monorepo at.
-  const manifests = readWorkspaceManifests(projectPath, result.files);
-  const units = summarizeUnits(result.files, manifests);
+  const { manifests, packageDirs } = readWorkspaceManifests(projectPath, result.files);
+  const { packages: units, otherDirectories } = summarizeUnits(result.files, packageDirs);
   const modules = units
     .slice(0, 15)
     .map(
@@ -420,12 +459,17 @@ export async function analyzeWithoutLlm(
         (u.entryPoint ? `, entry: ${u.entryPoint}` : ''),
     )
     .join('\n');
+  const otherDirs = otherDirectories
+    .slice(0, 8)
+    .map((u) => `  • ${u.unit} — ${u.sourceFileCount} source file(s)`)
+    .join('\n');
 
   // Dependency edges between workspace units — real, extracted relations.
   const { fileEdges, manifestEdges } = summarizeUnitDependencies(
     result.dependencies,
     result.files,
     manifests,
+    packageDirs,
   );
   const depEdges = fileEdges
     .slice(0, 15)
@@ -458,6 +502,21 @@ export async function analyzeWithoutLlm(
         .join('\n\n')
     : '(no source file mentions the question terms)';
 
+  // Limits of this mode, stated by the answer itself.
+  //
+  // The deterministic path measures the repository. It cannot reason about it.
+  // Saying so is part of the answer: without this, a keyword-matched excerpt
+  // reads like an answer to a question it does not answer, and the reader
+  // cannot tell evidence from inference.
+  const limits = [
+    'This mode derives FACTS from the code scan. It does not generate an',
+    'argument, so it cannot separate what the repository proves from what a',
+    'reader might infer — that separation requires a language model.',
+    'It also reads a static snapshot: it does not use git history, so it',
+    'cannot tell current code from historical or deprecated code.',
+    'Every excerpt below is a keyword match, not an answer to the question.',
+  ].join('\n');
+
   const content = [
     'code-derived facts (no LLM)',
     '',
@@ -467,12 +526,18 @@ export async function analyzeWithoutLlm(
     'deterministic part of the pipeline: it scanned the project, built the module map',
     'and matched your question against the real source files. No prose was generated.',
     '',
+    'What this answer is, and is not:',
+    limits,
+    '',
     `Files scanned: ${result.totalFiles} (${result.totalSize} bytes)`,
     `Tech stack: ${tech}`,
     `Entry points: ${result.entryPoints.slice(0, 5).join(', ') || 'n/a'}`,
     '',
-    `Workspace units (${units.length} total, top ${Math.min(15, units.length)} by source files):`,
+    `Workspace packages (${units.length} total, top ${Math.min(15, units.length)} by source files):`,
     modules || '  • none',
+    '',
+    `Directories outside the workspace packages (top ${Math.min(8, otherDirectories.length)} by source files):`,
+    otherDirs || '  • none',
     '',
     `Dependency edges between units (file-level imports, top ${Math.min(15, fileEdges.length)}):`,
     depEdges || '  • none detected',
@@ -491,19 +556,27 @@ export async function analyzeWithoutLlm(
 
   const claims = [
     {
-      statement: `The project contains ${result.totalFiles} files across ${units.length} workspace units.`,
+      statement: `The project contains ${result.totalFiles} files across ${units.length} workspace packages.`,
+      // The scan counted these itself, so the number is a measured fact.
       isVerified: true,
       evidenceCount: top.length,
+      kind: 'scan-fact' as const,
     },
     {
       statement: `Detected tech stack: ${tech}.`,
       isVerified: true,
       evidenceCount: top.length,
+      kind: 'scan-fact' as const,
     },
     ...top.map((s) => ({
       statement: `${s.filePath} mentions the question terms.`,
-      isVerified: true,
+      // The file was retrieved because it contains the terms. That is a
+      // retrieval hit, not a conclusion about the project: nothing here
+      // verifies that the file answers the question. Marking it as a
+      // verified claim would be a false guarantee.
+      isVerified: false,
       evidenceCount: 1,
+      kind: 'lexical-match' as const,
     })),
   ];
 

@@ -43,7 +43,7 @@ import type {
 } from './discovery-types.js';
 import { DefaultDiscoveryConfig } from './discovery-types.js';
 
-import { readdirSync, statSync, readFileSync } from 'node:fs';
+import { readdirSync, statSync, lstatSync, readFileSync } from 'node:fs';
 import { join, relative, extname, basename, dirname } from 'node:path';
 
 /**
@@ -198,7 +198,27 @@ export class DiscoveryPipelineService implements Service {
       }
 
       try {
-        const stat = statSync(fullPath);
+        // lstat, not stat: a symlink to a directory must NOT be walked into.
+        // Repositories symlink shared files (AGENTS.md, .claude/skills) and
+        // following them counts the same file twice, inflating the file count
+        // and the module map with entries that exist in one place only.
+        const lstat = lstatSync(fullPath);
+
+        if (lstat.isSymbolicLink()) {
+          // Record the link itself, but do not traverse its target.
+          if (files.length < this._config.maxFiles) {
+            files.push({
+              path: fullPath,
+              relativePath: relPath,
+              extension: extname(entry),
+              size: lstat.size,
+              lastModified: lstat.mtime.toISOString(),
+            });
+          }
+          continue;
+        }
+
+        const stat = lstat;
 
         if (stat.isDirectory()) {
           this.walkDirectory(fullPath, rootPath, files, depth + 1);
@@ -399,6 +419,42 @@ export class DiscoveryPipelineService implements Service {
       if (name === 'vitest.config.ts') {
         addTech({ name: 'Vitest', category: 'test-framework', version: null, evidence: name });
       }
+    }
+
+    // Languages other than TypeScript are still part of the stack. Config-file
+    // detection alone misses them: a repository with 57 Python files and no
+    // pyproject.toml looks like a TypeScript-only project, and native code
+    // (Swift, C, C++) never shows up in a package.json at all.
+    const LANGUAGE_BY_EXTENSION: ReadonlyArray<[string, string]> = [
+      ['.py', 'Python'],
+      ['.swift', 'Swift'],
+      ['.go', 'Go'],
+      ['.rs', 'Rust'],
+      ['.java', 'Java'],
+      ['.kt', 'Kotlin'],
+      ['.rb', 'Ruby'],
+      ['.php', 'PHP'],
+      ['.c', 'C'],
+      ['.h', 'C'],
+      ['.cc', 'C++'],
+      ['.cpp', 'C++'],
+      ['.hpp', 'C++'],
+      ['.cs', 'C#'],
+      ['.m', 'Objective-C'],
+      ['.mm', 'Objective-C++'],
+    ];
+    // A handful of files is noise (a vendored snippet, a build script). A
+    // language is part of the stack once it is used consistently.
+    const MIN_FILES_FOR_LANGUAGE = 3;
+    const counts = new Map<string, number>();
+    for (const file of files) {
+      const language = LANGUAGE_BY_EXTENSION.find(([ext]) => ext === file.extension)?.[1];
+      if (!language) continue;
+      counts.set(language, (counts.get(language) ?? 0) + 1);
+    }
+    for (const [language, count] of counts) {
+      if (count < MIN_FILES_FOR_LANGUAGE) continue;
+      addTech({ name: language, category: 'language', version: null, evidence: `${count} ${language} source file(s)` });
     }
 
     return Object.freeze(tech);
