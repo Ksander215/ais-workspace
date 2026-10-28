@@ -22,8 +22,6 @@
   `REF_NOT_FOUND` → 404.
 - Path security: платформенно-корректный разбор POSIX/Windows, защита от traversal и
   sibling-prefix атак.
-- `ArchitectureOptimizer`: `estimatedEffort` считается от округлённого `estimatedImpact`
-  (был флаки-тест из-за расхождения округлений).
 
 ## [0.4.0] — 2026-10-28
 

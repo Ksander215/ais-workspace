@@ -1,26 +1,45 @@
-# Repository Governance
+# AIS Repository Governance
 
-This document defines the governance rules for the AIS repository: how changes are made, what evidence is required, and what a release candidate must satisfy.\n
-## 1. Scope
+## Purpose
 
-This repository contains AIS only. The former SIP contour was removed from `main`; the commercial product built on it lives in a separate repository.
+This document defines how the repository is changed, verified, and released. It is an engineering control plane, not an architecture specification.
 
-## 2. Evidence levels
+## 1. Source of truth
 
-| Level | Meaning |
-|---|---|
-| E0 | Specification or design intent |
-| E1 | External signal (market, user, operational) |
-| E2 | Use case exercised end to end |
-| E3 | AIS validation of the use case |
-| E4 | Feedback collected from a real user |
-| E5 | Pilot in a real setting |
+- `main` is the integration branch.
+- A Pull Request is the review boundary.
+- A commit is an immutable historical checkpoint.
+- Tags/releases identify externally testable versions.
+- Documentation must not claim evidence stronger than the underlying verification.
+
+## 2. Change lifecycle
+
+```text
+Issue / task
+  -> branch
+  -> atomic commit(s)
+  -> push
+  -> Pull Request
+  -> automated checks
+  -> review
+  -> merge
+  -> main
+  -> external validation
+  -> release/tag when warranted
+```
+
+## 3. Evidence hierarchy
+
+```text
+E0 hypothesis/spec
+E1 external problem signal
+E2 concrete use case
+E3 AIS validation on real use case
+E4 user feedback
+E5 repeatable scenario/pilot
+```
 
 CI evidence is engineering evidence. It does not substitute for E1–E5 user evidence.
-
-## 3. Validation corpus
-
-External validation runs on a frozen corpus of real open-source repositories. The corpus composition is fixed before the run and is not changed because results are inconvenient.
 
 ## 4. AIS / SIP boundary
 
@@ -39,3 +58,32 @@ Before merging a substantive AIS change:
 
 A release candidate should have:
 - a known commit SHA;
+- reproducible setup instructions;
+- build/test evidence;
+- known limitations;
+- a defined validation scenario.
+
+A release is not evidence of product-market fit.
+
+## 7. Third-party machine gate
+
+For a clean external machine:
+
+```text
+clone -> install -> build -> start -> open UI
+      -> Demo -> evidence -> GitHub repo
+      -> question -> feedback -> restart -> continuity
+```
+
+Failures in prerequisites/launch are tracked separately from product-value failures.
+
+## 8. Current repository risks
+
+- npm dependency installation is not lockfile-reproducible yet; `bun.lock` exists, but the documented workflow uses npm.
+- CI is newly introduced and must be observed on GitHub before being treated as a trusted gate.
+- Branch protection is not established by this document and should be configured in repository settings.
+- AIS real-inference and user-validation evidence remain environment-dependent.
+
+## 9. Operating rule
+
+Do not solve a future governance problem by adding architecture. Keep repository controls minimal, explicit, and auditable.

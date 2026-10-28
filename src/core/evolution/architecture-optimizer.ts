@@ -1,51 +1,32 @@
 /**
- * Architecture optimizer — generates architecture optimization suggestions.
+ * Evolution & Continuous Improvement Runtime (ECIR) — Architecture Optimizer
+ * TASK-AIS-008A.000
  *
- * @packageDocumentation
+ * Analyzes architecture for simplification, decoupling, and cohesion improvements.
  */
 
-import { randomUUID } from 'node:crypto';
-import type { EventBus } from '../events/event-bus';
-import { EventClassification } from '../events/types';
-import type { Timestamp } from '../types';
-import { brandEvolutionNodeId } from './types';
+import type { Timestamp } from '../types/common.js';
+import { EventClassification } from '../types/common.js';
+import type { DomainEventBase } from '../domain/events/domain-event.js';
+import type { InProcessEventBus } from '../events/event-bus.js';
+import type { IArchitectureOptimizer } from './contracts.js';
+import type {
+  EvolutionNodeId, ArchOptimizationSuggestion, ArchitectureOptimizerConfig,
+} from './types.js';
+import { brandEvolutionNodeId, ArchOptimizationType } from './types.js';
 
-/**
- * Architecture optimization suggestion.
- */
-export interface ArchOptimizationSuggestion {
-  readonly id: string;
-  readonly type: string;
-  readonly title: string;
-  readonly description: string;
-  readonly affectedModules: readonly string[];
-  readonly estimatedImpact: number;
-  readonly estimatedEffort: number;
-  readonly risk: number;
-  readonly createdAt: Timestamp;
-  readonly metadata: Readonly<Record<string, unknown>>;
-}
+const CYCLING_TYPES = [
+  ArchOptimizationType.Simplify,
+  ArchOptimizationType.ReduceCoupling,
+  ArchOptimizationType.ImproveCohesion,
+] as const;
 
-/**
- * Optimizer configuration.
- */
-export interface ArchitectureOptimizerConfig {
-  readonly maxSuggestions: number;
-}\n
-/**
- * Cycling suggestion types.
- */
-const CYCLING_TYPES: readonly string[] = ['performance', 'maintainability', 'security', 'scalability'];
-
-/**
- * Architecture optimizer.
- */
-export class ArchitectureOptimizer {
+export class ArchitectureOptimizer implements IArchitectureOptimizer {
   private readonly config: ArchitectureOptimizerConfig;
-  private readonly eventBus: EventBus | null;
-  private readonly suggestions = new Map<string, ArchOptimizationSuggestion>();
+  private readonly eventBus: InProcessEventBus | null;
+  private suggestions = new Map<string, ArchOptimizationSuggestion>();
 
-  constructor(config: ArchitectureOptimizerConfig, eventBus?: EventBus | null) {
+  constructor(config: ArchitectureOptimizerConfig, eventBus?: InProcessEventBus | null) {
     this.config = config;
     this.eventBus = eventBus ?? null;
   }
@@ -61,7 +42,7 @@ export class ArchitectureOptimizer {
       for (const type of CYCLING_TYPES) {
         if (results.length >= this.config.maxSuggestions) break;
 
-        const id = brandEvolutionNodeId(randomUUID());
+        const id = brandEvolutionNodeId(crypto.randomUUIP());
         const title = `${type} for ${module}`;
         const description = `Architecture optimization suggestion: ${type} in module ${module}`;
         const estimatedImpact = Math.round((50 + Math.random() * 50) * 100) / 100;
@@ -87,30 +68,49 @@ export class ArchitectureOptimizer {
           classification: EventClassification.Result,
           nodeId: id,
           type,
-        });
+          title,
+          estimatedImpact: suggestion.estimatedImpact,
+          timestamp: now,
+          metadata: Object.freeze({}),
+        }, id as string, 'ArchOptimization');
       }
     }
 
     return Object.freeze(results);
   }
 
-  /**
-   * Get all generated suggestions.
-   */
-  getSuggestions(): readonly ArchOptimizationSuggestion[] {
-    return Object.freeze([...this.suggestions.values()]);
+  async getById(id: EvolutionNodeId): Promise<ArchOptimizationSuggestion | null> {
+    return this.suggestions.get(id as string) ?? null;
   }
 
-  /**
-   * Publish an event if a bus is attached.
-   */
-  private async publishEvent(event: {
-    eventType: string;
-    classification: EventClassification;
-    nodeId: string;
-    type: string;
-  }): Promise<void> {
-    if (!this.eventBus) return;
-    await this.eventBus.publish(event as never);
+  async list(): Promise<readonly ArchOptimizationSuggestion[]> {
+    return Array.from(this.suggestions.values());
+  }
+
+  async count(): Promise<number> {
+    return this.suggestions.size;
+  }
+
+  /** Reset internal state. Used by EvolutionRuntime.shutdown(). */
+  dispose(): void {
+    this.suggestions = new Map();
+  }
+
+  private async publishEvent(
+    event: Record<string, unknown>,
+    aggregateId: string,
+    aggregateType: string,
+  ): Promise<void> {
+    const full = Object.freeze({
+      ...event,
+      eventId: crypto.randomUUIP(),
+      sequence: 0,
+      aggregateId,
+      aggregateType,
+      version: '1.0.0',
+    });
+    if (this.eventBus) {
+      await this.eventBus.publish(full as DomainEventBase);
+    }
   }
 }

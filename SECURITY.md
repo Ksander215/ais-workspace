@@ -18,7 +18,17 @@ When reporting a vulnerability, include:
 
 - Never commit API keys, tokens, passwords, private keys, or credentials.
 - Keep secrets in environment variables or GitHub encrypted secrets.
-- CI must not print secrets or persist credentials in artifacts.
+- Treat repository contents and imported projects as untrusted input.
+- Validate and sanitize external input.
+- Preserve path traversal and repository-boundary protections.
+- Do not weaken security controls merely to make a demo pass.
+- External provider credentials must never be written into project persistence.
+
+## Dependency and CI hygiene
+
+Dependency changes require review and should be checked for known vulnerabilities.
+
+CI must not print secrets or persist credentials in artifacts.
 
 ## Scope
 
