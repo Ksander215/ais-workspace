@@ -91,7 +91,7 @@ export function Header() {
               {locale === "ru" ? "EN" : "RU"}
             </button>
             <a
-              href="https://github.com/Ksander215/sec-scanner-workspace"
+              href="https://github.com/Ksander215/ais-workspace"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-2 hover:text-foreground transition-colors"
@@ -154,7 +154,7 @@ export function Header() {
               </Link>
               <div className="flex gap-3 mt-3 pt-3 border-t border-border">
                 <a
-                  href="https://github.com/Ksander215/sec-scanner-workspace"
+                  href="https://github.com/Ksander215/ais-workspace"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-muted-2 hover:text-foreground"

@@ -10,10 +10,10 @@ export function PlatformMetrics() {
 
   const metrics = [
     { value: 20, suffix: "", label: t("metrics.label.modules"), color: "text-accent", icon: Shield, description: t("metrics.desc.modules"), href: "/app/docs" },
-    { value: 370, suffix: "+", label: t("metrics.label.sourceFiles"), color: "text-cyan", icon: Code2, description: t("metrics.desc.sourceFiles"), href: "https://github.com/Ksander215/sec-scanner-workspace", external: true },
-    { value: 2350, suffix: "+", label: t("metrics.label.tests"), color: "text-amber", icon: TestTube2, description: t("metrics.desc.tests"), href: "https://github.com/Ksander215/sec-scanner-workspace", external: true },
+    { value: 370, suffix: "+", label: t("metrics.label.sourceFiles"), color: "text-cyan", icon: Code2, description: t("metrics.desc.sourceFiles"), href: "https://github.com/Ksander215/ais-workspace", external: true },
+    { value: 2350, suffix: "+", label: t("metrics.label.tests"), color: "text-amber", icon: TestTube2, description: t("metrics.desc.tests"), href: "https://github.com/Ksander215/ais-workspace", external: true },
     { value: 0, suffix: "", label: t("metrics.label.tsErrors"), color: "text-accent", icon: CheckCircle2, description: t("metrics.desc.tsErrors"), href: "/app/docs" },
-    { value: 100, suffix: "%", label: t("metrics.label.opensource"), color: "text-purple", icon: Unlock, description: t("metrics.desc.opensource"), href: "https://github.com/Ksander215/sec-scanner-workspace", external: true },
+    { value: 100, suffix: "%", label: t("metrics.label.opensource"), color: "text-purple", icon: Unlock, description: t("metrics.desc.opensource"), href: "https://github.com/Ksander215/ais-workspace", external: true },
     { value: 1, suffix: "", label: t("metrics.label.oneCommand"), color: "text-cyan", icon: Rocket, description: t("metrics.desc.oneCommand"), href: "/app/playground" },
   ];
 

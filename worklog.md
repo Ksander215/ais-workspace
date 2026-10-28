@@ -7,7 +7,7 @@ Task: TASK-AIS-004B.900 — Desktop Application Foundation Finalization & Releas
 
 ## Context
 Repository: /home/z/my-project
-Remote: git@github.com:Ksander215/sec-scanner-workspace.git
+Remote: git@github.com:Ksander215/ais-workspace.git
 Previous state: Only contained .env, .gitignore, download/README.md (empty project)
 
 ## Phase 1: Audit

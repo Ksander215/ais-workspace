@@ -66,8 +66,8 @@ export default function DeploymentPage() {
           <h3 className="text-lg font-semibold text-foreground mb-3">{t("docs.deploy.quickStart")}</h3>
           <div className="p-4 rounded-lg bg-background border border-border font-mono text-sm space-y-2">
             <div className="text-muted">{t("docs.deploy.comment.clone")}</div>
-            <div className="text-accent">git clone https://github.com/Ksander215/sec-scanner-workspace</div>
-            <div className="text-accent">cd sec-scanner-workspace</div>
+            <div className="text-accent">git clone https://github.com/Ksander215/ais-workspace</div>
+            <div className="text-accent">cd ais-workspace</div>
             <div className="mt-2 text-muted">{t("docs.deploy.comment.start")}</div>
             <div className="text-accent">docker compose up -d</div>
             <div className="mt-2 text-muted">{t("docs.deploy.comment.access")}</div>

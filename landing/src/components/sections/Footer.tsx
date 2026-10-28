@@ -26,7 +26,7 @@ export function Footer() {
         { label: "API Reference", href: "/app/docs/api" },
         { label: "CLI", href: "/app/docs/cli" },
         { label: "SDK", href: "/app/docs/sdk" },
-        { label: "GitHub", href: "https://github.com/Ksander215/sec-scanner-workspace" },
+        { label: "GitHub", href: "https://github.com/Ksander215/ais-workspace" },
       ],
     },
     {
@@ -34,9 +34,9 @@ export function Footer() {
       links: [
         { label: "Telegram", href: "https://t.me/sip_security_platform" },
         { label: "Discord", href: "https://discord.gg/sip-security" },
-        { label: "GitHub Discussions", href: "https://github.com/Ksander215/sec-scanner-workspace/discussions" },
+        { label: "GitHub Discussions", href: "https://github.com/Ksander215/ais-workspace/discussions" },
         { label: t("community.roadmap"), href: "/app/community/roadmap" },
-        { label: t("community.contributing"), href: "https://github.com/Ksander215/sec-scanner-workspace/blob/main/CONTRIBUTING.md" },
+        { label: t("community.contributing"), href: "https://github.com/Ksander215/ais-workspace/blob/main/CONTRIBUTING.md" },
       ],
     },
     {
@@ -45,7 +45,7 @@ export function Footer() {
         { label: locale === "ru" ? "Политика конфиденциальности" : "Privacy Policy", href: "/app/legal/privacy" },
         { label: locale === "ru" ? "Условия использования" : "Terms of Service", href: "/app/legal/terms" },
         { label: locale === "ru" ? "Политика безопасности" : "Security Policy", href: "/app/legal/security" },
-        { label: "MIT License", href: "https://github.com/Ksander215/sec-scanner-workspace/blob/main/LICENSE" },
+        { label: "MIT License", href: "https://github.com/Ksander215/ais-workspace/blob/main/LICENSE" },
       ],
     },
   ];
@@ -69,7 +69,7 @@ export function Footer() {
             </p>
             <div className="mt-4 flex items-center gap-3">
               <a
-                href="https://github.com/Ksander215/sec-scanner-workspace"
+                href="https://github.com/Ksander215/ais-workspace"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 text-muted hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"

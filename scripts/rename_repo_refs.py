@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""One-off migration: repository `sec-scanner-workspace` was renamed to `ais-workspace`.
+"""One-off migration: repository `ais-workspace` was renamed to `ais-workspace`.
 
 Rewrites references to the old name across tracked text files and patches
 `scripts/readme_restore.py`, which rebuilds README from a pristine commit and
 would otherwise reintroduce the old name.
 
 Skips:
-  - the nested `sec-scanner-workspace` gitlink (separate working tree);
+  - the nested `ais-workspace` gitlink (separate working tree);
   - historical audit and validation reports (they record the name at a past commit);
   - this script itself (its constants must keep the old name to work);
   - workflow files (the CI token has no `workflows: write` permission);
@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-OLD = "sec-scanner-workspace"
+OLD = "ais-workspace"
 NEW = "ais-workspace"
 
 SKIP_DIRS = {".git", "node_modules", ".next", "dist", "build", "coverage", OLD}
@@ -65,7 +65,7 @@ def patch_restore_script() -> bool:
     text = text.replace(
         'PRISTINE = "0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4"',
         'PRISTINE = "0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4"\n'
-        'OLD_REPO_NAME = "sec-scanner-workspace"\n'
+        'OLD_REPO_NAME = "ais-workspace"\n'
         'NEW_REPO_NAME = "ais-workspace"',
         1,
     )

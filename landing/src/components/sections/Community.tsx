@@ -29,7 +29,7 @@ export function Community() {
       icon: GitHubIcon,
       name: t("community.github"),
       desc: t("community.github.desc"),
-      href: "https://github.com/Ksander215/sec-scanner-workspace",
+      href: "https://github.com/Ksander215/ais-workspace",
       color: "#e8e8ed",
       members: "340",
     },
@@ -125,7 +125,7 @@ export function Community() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
             <a
-              href="https://github.com/Ksander215/sec-scanner-workspace"
+              href="https://github.com/Ksander215/ais-workspace"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-accent text-background rounded-xl hover:bg-accent-hover transition-colors"

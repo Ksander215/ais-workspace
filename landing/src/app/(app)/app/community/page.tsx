@@ -43,7 +43,7 @@ const channels: Channel[] = [
     descKey: "community.github.desc",
     membersKey: "community.github.members",
     ctaKey: "community.github.cta",
-    href: "https://github.com/Ksander215/sec-scanner-workspace",
+    href: "https://github.com/Ksander215/ais-workspace",
     external: true,
   },
   {

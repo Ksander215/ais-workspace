@@ -13,7 +13,7 @@
 
 | Check        | Result                                     |
 | ------------ | ------------------------------------------ |
-| Repository   | `sec-scanner-workspace`                    |
+| Repository   | `ais-workspace`                    |
 | Branch       | `main`                                     |
 | HEAD         | `5a81ad91c13bec333ca0602748ef297b0796038d` |
 | Working tree | `clean`                                    |

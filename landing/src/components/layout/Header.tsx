@@ -236,7 +236,7 @@ export function Header() {
               </button>
 
               <a
-                href="https://github.com/Ksander215/sec-scanner-workspace"
+                href="https://github.com/Ksander215/ais-workspace"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-2 hover:text-foreground transition-colors"

@@ -12,7 +12,7 @@
 
 | Check        | Result                                     |
 | ------------ | ------------------------------------------ |
-| Repository   | `sec-scanner-workspace`                    |
+| Repository   | `ais-workspace`                    |
 | Branch       | `main`                                     |
 | HEAD         | `2dbf4dbb2d30c46abed6f3e770b4ab411ecf5584` |
 | Working tree | `clean`                                    |

@@ -171,7 +171,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                   {localeNames[locale]} / {localeNames[locale === "ru" ? "en" : "ru" as Locale]}
                 </button>
                 <a
-                  href="https://github.com/Ksander215/sec-scanner-workspace"
+                  href="https://github.com/Ksander215/ais-workspace"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-2 text-sm text-muted-2 hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"

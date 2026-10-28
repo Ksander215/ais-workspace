@@ -1099,7 +1099,7 @@ export default function SolutionsCenterPage() {
             {" · "}
             <a href="https://discord.gg/sip-security" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Discord</a>
             {" · "}
-            <a href="https://github.com/Ksander215/sec-scanner-workspace" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">GitHub</a>
+            <a href="https://github.com/Ksander215/ais-workspace" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">GitHub</a>
           </p>
         </div>
 

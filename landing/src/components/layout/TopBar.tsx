@@ -78,7 +78,7 @@ export function TopBar({ sidebarCollapsed, onSearchOpen }: TopBarProps) {
 
         {/* GitHub */}
         <a
-          href="https://github.com/Ksander215/sec-scanner-workspace"
+          href="https://github.com/Ksander215/ais-workspace"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-2 hover:text-foreground hover:bg-surface-2 transition-colors"

@@ -42,7 +42,7 @@ export default function FeatureRequestsPage() {
             <p className="text-sm text-muted-2">
               Have an idea? Open a feature request on{" "}
               <a
-                href="https://github.com/Ksander215/sec-scanner-workspace/discussions"
+                href="https://github.com/Ksander215/ais-workspace/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-accent hover:underline"

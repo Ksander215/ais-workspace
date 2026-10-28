@@ -21,7 +21,7 @@ const footerColumns = [
       { label: "API Reference", href: "/docs/api" },
       { label: "CLI", href: "/docs/cli" },
       { label: "SDK", href: "/docs/sdk" },
-      { label: "GitHub", href: "https://github.com/Ksander215/sec-scanner-workspace" },
+      { label: "GitHub", href: "https://github.com/Ksander215/ais-workspace" },
     ],
   },
   {
@@ -40,7 +40,7 @@ const footerColumns = [
       { label: "Privacy Policy", href: "/legal/privacy" },
       { label: "Terms of Service", href: "/legal/terms" },
       { label: "Security Policy", href: "/legal/security" },
-      { label: "License (MIT)", href: "https://github.com/Ksander215/sec-scanner-workspace/blob/main/LICENSE" },
+      { label: "License (MIT)", href: "https://github.com/Ksander215/ais-workspace/blob/main/LICENSE" },
     ],
   },
 ];
@@ -64,7 +64,7 @@ export function Footer() {
             </p>
             <div className="mt-4 flex items-center gap-3">
               <a
-                href="https://github.com/Ksander215/sec-scanner-workspace"
+                href="https://github.com/Ksander215/ais-workspace"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 text-muted hover:text-foreground hover:bg-surface-2 rounded-lg transition-colors"

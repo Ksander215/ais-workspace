@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/AIS-AI%20architecture%20copilot-7C3AED" alt="AIS" />
   <img src="https://img.shields.io/badge/SIP-security%20platform-06B6D4" alt="SIP" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" />
-  <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
+  <img src="https://img.shields.io/github/stars/Ksander215/ais-workspace?style=social" alt="Stars" />
 </p>
 
 ## 🧠 AIS — the main project
@@ -65,8 +65,8 @@ git --version
 Run these commands from the repository root:
 
 ```bash
-git clone https://github.com/Ksander215/sec-scanner-workspace.git
-cd sec-scanner-workspace
+git clone https://github.com/Ksander215/ais-workspace.git
+cd ais-workspace
 npm install
 npm run build
 ```
@@ -94,7 +94,7 @@ The interface should show **“AIS — Understand Any Codebase”**.
 The normal build/start commands above work in PowerShell, Command Prompt, and other shells:
 
 ```text
-cd sec-scanner-workspace
+cd ais-workspace
 npm install
 npm run build
 npm run mvp-ui
@@ -334,8 +334,8 @@ Each plugin runs in isolation with a defined manifest:
 ### Clone and Run (SIP)
 
 ```bash
-git clone https://github.com/Ksander215/sec-scanner-workspace.git
-cd sec-scanner-workspace
+git clone https://github.com/Ksander215/ais-workspace.git
+cd ais-workspace
 
 # Frontend
 cd landing
@@ -372,7 +372,7 @@ npm run build
 ## Project Structure
 
 ```
-sec-scanner-workspace/
+ais-workspace/
 ├── landing/              # Next.js frontend (static export)
 │   ├── src/
 │   │   ├── app/          # 63 pages — dashboard, scanner, marketplace, reports...
@@ -507,6 +507,6 @@ MIT License — see [LICENSE](./LICENSE).
 
 **Built with purpose. Secured by design.**
 
-[sec-scanner.pro](https://sec-scanner.pro) · [GitHub](https://github.com/Ksander215/sec-scanner-workspace)
+[sec-scanner.pro](https://sec-scanner.pro) · [GitHub](https://github.com/Ksander215/ais-workspace)
 
 </div>

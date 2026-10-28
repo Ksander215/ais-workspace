@@ -10,6 +10,8 @@ import subprocess
 import sys
 
 PRISTINE = "0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4"
+OLD_REPO_NAME = "sec-scanner-workspace"
+NEW_REPO_NAME = "ais-workspace"
 PATH = "README.md"
 
 HERO = """<p align="center">
@@ -24,7 +26,7 @@ HERO = """<p align="center">
   <img src="https://img.shields.io/badge/AIS-AI%20architecture%20copilot-7C3AED" alt="AIS" />
   <img src="https://img.shields.io/badge/SIP-security%20platform-06B6D4" alt="SIP" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" />
-  <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
+  <img src="https://img.shields.io/github/stars/Ksander215/ais-workspace?style=social" alt="Stars" />
 </p>
 
 ## 🧠 AIS — the main project
@@ -93,6 +95,7 @@ LICENSE_ANCHOR = "---\n\n## License"
 def main() -> int:
     subprocess.run(["git", "checkout", PRISTINE, "--", PATH], check=True)
     text = open(PATH, encoding="utf-8").read()
+    text = text.replace(OLD_REPO_NAME, NEW_REPO_NAME)
 
     for old, new in REPLACEMENTS:
         if old in text:
