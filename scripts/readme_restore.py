@@ -13,7 +13,7 @@ PRISTINE = "0be91f01d7aaab4aff30c90f9b8d5fb507e4a9c4"
 PATH = "README.md"
 
 HERO = """<p align="center">
-  <a href="#-ais--the-active-project"><b>🧠 AIS — the active project</b></a> ·
+  <a href="#-ais--the-main-project"><b>🧠 AIS — the main project</b></a> ·
   <a href="#-commercial-sec-scanner"><b>💰 Sec Scanner (commercial)</b></a> ·
   <a href="https://sec-scanner.pro"><b>▶ Live demo</b></a> ·
   <a href="https://t.me/zarabotok_pulse_bot"><b>✈️ Telegram-канал</b></a> ·
@@ -27,13 +27,15 @@ HERO = """<p align="center">
   <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
 </p>
 
-## 🧠 AIS — the active project
+## 🧠 AIS — the main project
 
 **AIS is the project being built and shipped here right now.** It is an AI copilot that reads an unfamiliar codebase and answers architecture questions with evidence behind every claim. AIS stays MIT and free, and its development happens in the open in this repository.
 
+SIP (Security Intelligence Platform) was the original project. It now lives inside AIS as an auxiliary product, and its scanning stack ships commercially as **Sec Scanner**.
+
 ## 💰 Commercial: Sec Scanner
 
-**Sec Scanner** is the paid build of the separate **SIP** contour in this repository — managed scanning, a hosted dashboard and hands-on onboarding. AIS above stays free and MIT for everyone.
+**Sec Scanner** is the paid build of the auxiliary **SIP** product inside AIS — managed scanning, a hosted dashboard and hands-on onboarding. AIS itself stays free and MIT for everyone.
 
 | Plan | Price | What you get |
 |---|---|---|
@@ -65,16 +67,36 @@ Issues and PRs are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and [doc
 """
 
 ANCHOR = (
-    "> **AIS MVP is the active validation target.** This repository also contains "
-    "the separate SIP Security Intelligence Platform. They are different "
-    "product/runtime contours.\n"
+    "> **AIS is the main product in this repository.** SIP was the original "
+    "project and now lives as an auxiliary product inside AIS. They are "
+    "different product/runtime contours.\n"
 )
+
+REPLACEMENTS = [
+    (
+        "> **AIS MVP is the active validation target.** This repository also contains "
+        "the separate SIP Security Intelligence Platform. They are different "
+        "product/runtime contours.",
+        "> **AIS is the main product in this repository.** SIP was the original "
+        "project and now lives as an auxiliary product inside AIS. They are "
+        "different product/runtime contours.",
+    ),
+    (
+        "the `landing/` directory belongs to the separate SIP application.",
+        "the `landing/` directory belongs to the SIP application, which is an "
+        "auxiliary product inside AIS.",
+    ),
+]
 LICENSE_ANCHOR = "---\n\n## License"
 
 
 def main() -> int:
     subprocess.run(["git", "checkout", PRISTINE, "--", PATH], check=True)
     text = open(PATH, encoding="utf-8").read()
+
+    for old, new in REPLACEMENTS:
+        if old in text:
+            text = text.replace(old, new, 1)
 
     if ANCHOR not in text:
         print("hero anchor not found", file=sys.stderr)
@@ -83,7 +105,7 @@ def main() -> int:
         print("license anchor not found", file=sys.stderr)
         return 1
 
-    if "## 🧠 AIS — the active project" not in text:
+    if "## 🧠 AIS — the main project" not in text:
         text = text.replace(ANCHOR, ANCHOR + "\n" + HERO, 1)
     if "## ⭐ Support the project" not in text:
         text = text.replace(LICENSE_ANCHOR, SUPPORT + "\n" + LICENSE_ANCHOR, 1)
