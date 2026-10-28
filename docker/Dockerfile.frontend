@@ -6,6 +6,8 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-COPY --from=builder /app/out /var/www/sec-scanner.pro
+# The default nginx root is /usr/share/nginx/html — copy the static export there
+# (COPYing into /var/www/... left nginx serving an empty directory).
+COPY --from=builder /app/out /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

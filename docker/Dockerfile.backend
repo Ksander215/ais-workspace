@@ -6,6 +6,9 @@ COPY . .
 RUN npm run build
 
 FROM node:20-alpine
+# The scanner actually runs these tools — without them every scan exited
+# with "command not found" and looked like a clean, successful scan.
+RUN apk add --no-cache nmap nmap-scripts curl git
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
