@@ -109,16 +109,8 @@ def main() -> int:
         print("nothing to rename")
         return 0
 
+    # Stage only: the workflow performs the commit and push.
     subprocess.run(["git", "add", *changed], check=True)
-    subprocess.run(
-        [
-            "git",
-            "-c", "user.name=github-actions[bot]",
-            "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-            "commit", "-m", "refactor: rename repository references to ais-workspace",
-        ],
-        check=True,
-    )
     print(f"renamed in {len(changed)} files:")
     for p in changed:
         print(" ", p)
