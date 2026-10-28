@@ -42,7 +42,7 @@ export class ArchitectureOptimizer implements IArchitectureOptimizer {
       for (const type of CYCLING_TYPES) {
         if (results.length >= this.config.maxSuggestions) break;
 
-        const id = brandEvolutionNodeId(crypto.randomUUIP());
+        const id = brandEvolutionNodeId(crypto.randomUUID());
         const title = `${type} for ${module}`;
         const description = `Architecture optimization suggestion: ${type} in module ${module}`;
         const estimatedImpact = Math.round((50 + Math.random() * 50) * 100) / 100;
@@ -103,7 +103,7 @@ export class ArchitectureOptimizer implements IArchitectureOptimizer {
   ): Promise<void> {
     const full = Object.freeze({
       ...event,
-      eventId: crypto.randomUUIP(),
+      eventId: crypto.randomUUID(),
       sequence: 0,
       aggregateId,
       aggregateType,
