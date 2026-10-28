@@ -8,6 +8,7 @@ would otherwise reintroduce the old name.
 Skips:
   - the nested `sec-scanner-workspace` gitlink (separate working tree);
   - historical audit and validation reports (they record the name at a past commit);
+  - this script itself (its constants must keep the old name to work);
   - binary and lock files.
 """
 
@@ -17,6 +18,7 @@ import sys
 
 OLD = "sec-scanner-workspace"
 NEW = "ais-workspace"
+SELF = "scripts/rename_repo_refs.py"
 
 SKIP_DIRS = {".git", "node_modules", ".next", "dist", "build", "coverage", OLD}
 SKIP_PREFIXES = (
@@ -46,10 +48,13 @@ def patch_restore_script() -> bool:
         return False
     with open(RESTORE_SCRIPT, encoding="utf-8") as fh:
         text = fh.read()
-    if 'OLD_REPO_NAME = "sec-scanner-workspace"' in text:
+    if "OLD_REPO_NAME" in text:
         return False
     if "    text = open(PATH, encoding=\"utf-8\").read()" not in text:
         return False
+    # 1) Rewrite the old name inside the script (e.g. the star badge in HERO).
+    text = text.replace(OLD, NEW)
+    # 2) Add the name constants and apply them to the restored README.
     text = text.replace(
         '    text = open(PATH, encoding="utf-8").read()',
         '    text = open(PATH, encoding="utf-8").read()\n'
@@ -63,8 +68,6 @@ def patch_restore_script() -> bool:
         'NEW_REPO_NAME = "ais-workspace"',
         1,
     )
-    # The script itself embeds the old name (e.g. the star badge in HERO).
-    text = text.replace(OLD, NEW)
     with open(RESTORE_SCRIPT, "w", encoding="utf-8") as fh:
         fh.write(text)
     return True
@@ -75,7 +78,7 @@ def main() -> int:
     for path in tracked_files():
         if path.startswith(SKIP_PREFIXES) or path.startswith(OLD + "/"):
             continue
-        if path == RESTORE_SCRIPT:
+        if path in (RESTORE_SCRIPT, SELF):
             continue
         if os.path.splitext(path)[1].lower() not in TEXT_EXT:
             continue
@@ -108,7 +111,12 @@ def main() -> int:
 
     subprocess.run(["git", "add", *changed], check=True)
     subprocess.run(
-        ["git", "commit", "-m", "refactor: rename repository references to ais-workspace"],
+        [
+            "git",
+            "-c", "user.name=github-actions[bot]",
+            "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+            "commit", "-m", "refactor: rename repository references to ais-workspace",
+        ],
         check=True,
     )
     print(f"renamed in {len(changed)} files:")
