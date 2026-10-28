@@ -1,9 +1,9 @@
 # AIS — Autonomous Intelligent System
 
-> **AIS MVP is the active validation target.** This repository also contains the separate SIP Security Intelligence Platform. They are different product/runtime contours.
+> **AIS is the main product in this repository.** SIP was the original project and now lives as an auxiliary product inside AIS. They are different product/runtime contours.
 
 <p align="center">
-  <a href="#-ais--the-active-project"><b>🧠 AIS — the active project</b></a> ·
+  <a href="#-ais--the-main-project"><b>🧠 AIS — the main project</b></a> ·
   <a href="#-commercial-sec-scanner"><b>💰 Sec Scanner (commercial)</b></a> ·
   <a href="https://sec-scanner.pro"><b>▶ Live demo</b></a> ·
   <a href="https://t.me/zarabotok_pulse_bot"><b>✈️ Telegram-канал</b></a> ·
@@ -17,13 +17,15 @@
   <img src="https://img.shields.io/github/stars/Ksander215/sec-scanner-workspace?style=social" alt="Stars" />
 </p>
 
-## 🧠 AIS — the active project
+## 🧠 AIS — the main project
 
 **AIS is the project being built and shipped here right now.** It is an AI copilot that reads an unfamiliar codebase and answers architecture questions with evidence behind every claim. AIS stays MIT and free, and its development happens in the open in this repository.
 
+SIP (Security Intelligence Platform) was the original project. It now lives inside AIS as an auxiliary product, and its scanning stack ships commercially as **Sec Scanner**.
+
 ## 💰 Commercial: Sec Scanner
 
-**Sec Scanner** is the paid build of the separate **SIP** contour in this repository — managed scanning, a hosted dashboard and hands-on onboarding. AIS above stays free and MIT for everyone.
+**Sec Scanner** is the paid build of the auxiliary **SIP** product inside AIS — managed scanning, a hosted dashboard and hands-on onboarding. AIS itself stays free and MIT for everyone.
 
 | Plan | Price | What you get |
 |---|---|---|
