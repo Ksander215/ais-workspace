@@ -1,6 +1,6 @@
 # Security Policy — AIS
 
-This repository contains AIS and a separate SIP codebase. This policy applies to the repository generally; security-sensitive findings should be reported privately rather than through public Issues.
+This repository contains AIS, the main product, and the auxiliary SIP product that now lives inside it. This policy applies to the repository generally; security-sensitive findings should be reported privately rather than through public Issues.
 
 ## Reporting
 
@@ -34,4 +34,4 @@ CI must not print secrets or persist credentials in artifacts.
 
 This policy is intentionally narrower than a production security program. It does not claim that the current MVP has enterprise-grade authentication, authorization, isolation, or compliance controls.
 
-For the separate SIP application, historical SIP-specific documentation remains in its own code/docs area and should not be treated as evidence of AIS production security posture.
+For the auxiliary SIP product, historical SIP-specific documentation remains in its own code/docs area and should not be treated as evidence of AIS production security posture.
