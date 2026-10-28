@@ -72,7 +72,7 @@ The interface should show **“AIS — Understand Any Codebase”**.
 
 ### 4. Windows quick start
 
-The normal build/start commands above work in PowerShell, Command Prompu; and other shells:
+The normal build/start commands above work in PowerShell, Command Prompt, and other shells:
 
 ```text
 cd ais-workspace
@@ -233,7 +233,7 @@ After reading these five documents, you can start development without needing an
 ### Specifications
 | Document | Description |
 |---|---|
-| [SRC-001.000.md](./SRC-001.000.md) | Adaptive Intelligence System full spec |
+| [SRC-001.000.md](./SRC-001.000.md) | Adaptive Intelligense System full spec |
 | [docs/product/validation/reports/ux-contract-findings-001.md](./docs/product/validation/reports/ux-contract-findings-001.md) | UX guidelines, colors, typography, animations |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture and data flow |
 | [docs/product/validation/reports/mvp-free-real-e2e-001.md](./docs/product/validation/reports/mvp-free-real-e2e-001.md) | E2E test scenarios for every page |
