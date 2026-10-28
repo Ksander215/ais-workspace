@@ -9,6 +9,7 @@ Skips:
   - the nested `sec-scanner-workspace` gitlink (separate working tree);
   - historical audit and validation reports (they record the name at a past commit);
   - this script itself (its constants must keep the old name to work);
+  - workflow files (the CI token has no `workflows: write` permission);
   - binary and lock files.
 """
 
@@ -18,7 +19,6 @@ import sys
 
 OLD = "sec-scanner-workspace"
 NEW = "ais-workspace"
-SELF = "scripts/rename_repo_refs.py"
 
 SKIP_DIRS = {".git", "node_modules", ".next", "dist", "build", "coverage", OLD}
 SKIP_PREFIXES = (
@@ -27,6 +27,7 @@ SKIP_PREFIXES = (
     "frames/",
     "public/",
     "assets/",
+    ".github/workflows/",
 )
 TEXT_EXT = {
     ".md", ".ts", ".tsx", ".js", ".jsx", ".json", ".yml", ".yaml",
@@ -78,7 +79,10 @@ def main() -> int:
     for path in tracked_files():
         if path.startswith(SKIP_PREFIXES) or path.startswith(OLD + "/"):
             continue
-        if path in (RESTORE_SCRIPT, SELF):
+        if path == RESTORE_SCRIPT:
+            continue
+        if path == os.path.normpath(__file__):
+            # never rewrite the migration script's own constants
             continue
         if os.path.splitext(path)[1].lower() not in TEXT_EXT:
             continue
