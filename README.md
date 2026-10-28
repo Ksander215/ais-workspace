@@ -5,7 +5,7 @@
 <p align="center">
   <a href="#-ais--the-main-project"><b>🧠 AIS — the main project</b></a> ·
   <a href="#-commercial-sec-scanner"><b>💰 Sec Scanner (commercial)</b></a> ·
-  <a href="https://sec-scanner.pro"><b>▶ Live demo</b></a> ·
+  <a href="https://ais-workspace.spru.site/"><b>▶ AIS demo</b></a> ·
   <a href="https://t.me/zarabotok_pulse_bot"><b>✈️ Telegram-канал</b></a> ·
   <a href="./docs/launch/"><b>📣 Launch plan</b></a>
 </p>
