@@ -1,0 +1,21 @@
+diff --git a/src/core/engine/execution-engine.ts b/src/core/engine/execution-engine.ts
+index 847b4e7..67616b0 100644
+--- a/src/core/engine/execution-engine.ts
++++ b/src/core/engine/execution-engine.ts
+@@ -763,6 +763,16 @@ export class ExecutionEngine {
+   private fallbackEvidenceFiles(discovery: DiscoveryResult): Array<{ file: string; mod: ModuleBoundary }> {
+     const out: Array<{ file: string; mod: ModuleBoundary }> = [];
+     const seen = new Set<string>();
++    // One file per module first, so a broad question is answered from several
++    // parts of the codebase instead of the largest module alone.
++    for (const mod of discovery.modules.slice(0, FALLBACK_MODULE_COUNT * 2)) {
++      const file = this.findKeyFiles(mod, discovery, 1)[0];
++      if (!file || seen.has(file)) continue;
++      seen.add(file);
++      out.push({ file, mod });
++      if (out.length >= FALLBACK_FILE_COUNT) return out;
++    }
++    // Then fill up with the remaining key files of the first modules.
+     for (const mod of discovery.modules.slice(0, FALLBACK_MODULE_COUNT)) {
+       for (const file of this.findKeyFiles(mod, discovery, 2)) {
+         if (seen.has(file)) continue;
