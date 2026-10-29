@@ -1,0 +1,46 @@
+diff --git a/src/core/engine/execution-engine.ts b/src/core/engine/execution-engine.ts
+index 14e18d9..847b4e7 100644
+--- a/src/core/engine/execution-engine.ts
++++ b/src/core/engine/execution-engine.ts
+@@ -123,6 +123,18 @@ const FALLBACK_MODULE_COUNT = 6;
+ /** How many files to cite as evidence in that case. */
+ const FALLBACK_FILE_COUNT = 8;
+ 
++/**
++ * Whether a path is a test file rather than implementation.
++ *
++ * Matches the common layouts: a `tests/` or `__tests__/` directory, and the
++ * `.test.` / `.spec.` / `.e2e.` filename conventions.
++ */
++function isTestFile(relativePath: string): boolean {
++  const p = relativePath.toLowerCase();
++  if (p.includes('/tests/') || p.includes('/__tests__/') || p.includes('/test/')) return true;
++  return /\.(test|spec|e2e)\.[cm]?[jt]sx?$/.test(p);
++}
++
+ /** Common English words to filter from question keywords. */
+ const STOP_WORDS = new Set([
+   'what', 'are', 'the', 'is', 'a', 'an', 'and', 'or', 'but', 'in', 'on',
+@@ -605,9 +617,11 @@ export class ExecutionEngine {
+     const moduleStem = mod.name.split('/').pop()?.split('-').pop()?.toLowerCase() ?? '';
+ 
+     // Priority 1: Non-index entry points (likely implementation files)
++    // Test files are skipped: a test file is evidence about the test, not
++    // about the module, and it was crowding out the implementation files.
+     for (const ep of mod.entryPoints) {
+       if (result.length >= maxFiles) break;
+-      if (ep.endsWith('.ts') && !ep.endsWith('index.ts') && !seen.has(ep)) {
++      if (ep.endsWith('.ts') && !ep.endsWith('index.ts') && !seen.has(ep) && !isTestFile(ep)) {
+         seen.add(ep); result.push(ep);
+       }
+     }
+@@ -619,8 +633,7 @@ export class ExecutionEngine {
+         f.relativePath.endsWith('.ts') &&
+         !f.relativePath.endsWith('index.ts') &&
+         !f.relativePath.endsWith('.d.ts') &&
+-        !f.relativePath.endsWith('.test.ts') &&
+-        !f.relativePath.endsWith('.spec.ts') &&
++        !isTestFile(f.relativePath) &&
+         !seen.has(f.relativePath),
+       );
+ 
