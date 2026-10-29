@@ -1,0 +1,126 @@
+diff --git a/src/core/engine/execution-engine.ts b/src/core/engine/execution-engine.ts
+index fcda4d5..7a68f5d 100644
+--- a/src/core/engine/execution-engine.ts
++++ b/src/core/engine/execution-engine.ts
+@@ -117,6 +117,12 @@ const EXCERPT_MAX_LINES = 40;
+ /** Max lines per snippet in evidence sources. */
+ const EVIDENCE_SNIPPET_LINES = 15;
+ 
++/** How many modules to fall back to when no graph node matched the question. */
++const FALLBACK_MODULE_COUNT = 6;
++
++/** How many files to cite as evidence in that case. */
++const FALLBACK_FILE_COUNT = 8;
++
+ /** Common English words to filter from question keywords. */
+ const STOP_WORDS = new Set([
+   'what', 'are', 'the', 'is', 'a', 'an', 'and', 'or', 'but', 'in', 'on',
+@@ -724,23 +730,67 @@ export class ExecutionEngine {
+         .join('\n');
+       parts.push(`## Modules (${discovery.modules.length} total)\n${moduleList}`);
+ 
+-      // Still try to read source from top 3 modules
+-      const fallbackSource = this.buildSourceExcerptsSection(
+-        discovery.modules.slice(0, 3).map((m, i) => ({
+-          node: { id: `fallback-${i}` as any, kind: ArchitectureNodeKind.Module, name: m.name, layer: '' as any },
+-          score: 1,
+-          reason: 'fallback: no graph match',
+-        })),
+-        discovery,
+-        projectPath,
+-        maxChars * 0.6,
+-      );
++      // Read source from the same files the evidence sources will cite.
++      const fallbackFiles = this.fallbackEvidenceFiles(discovery).map(e => e.file);
++      const fallbackSource = this.buildExcerptsForFiles(fallbackFiles, projectPath, maxChars * 0.6);
+       if (fallbackSource) parts.push(fallbackSource);
+     }
+ 
+     return parts.join('\n\n');
+   }
+ 
++  /**
++   * The files used when no graph node matched the question.
++   *
++   * The CONTEXT shown to the model and the EVIDENCE sources attached to the
++   * answer must come from the same files: otherwise the model is shown one
++   * set of excerpts while the claims cite another, and the evidence says
++   * nothing about what the answer was actually based on.
++   */
++  private fallbackEvidenceFiles(discovery: DiscoveryResult): Array<{ file: string; mod: ModuleBoundary }> {
++    const out: Array<{ file: string; mod: ModuleBoundary }> = [];
++    const seen = new Set<string>();
++    for (const mod of discovery.modules.slice(0, FALLBACK_MODULE_COUNT)) {
++      for (const file of this.findKeyFiles(mod, discovery, 2)) {
++        if (seen.has(file)) continue;
++        seen.add(file);
++        out.push({ file, mod });
++        if (out.length >= FALLBACK_FILE_COUNT) return out;
++      }
++    }
++    return out;
++  }
++
++  /**
++   * Render source excerpts for a fixed list of files.
++   */
++  private buildExcerptsForFiles(
++    files: readonly string[],
++    projectPath: string,
++    budgetChars: number,
++  ): string {
++    const blocks: string[] = [];
++    let usedChars = 0;
++    for (const file of files) {
++      if (usedChars >= budgetChars) break;
++      const excerpt = this.readSourceExcerpt(join(projectPath, file), EXCERPT_MAX_LINES);
++      if (!excerpt) continue;
++      const block = `\n### ${file}\n\`\`\`typescript\n${excerpt}\n\`\`\``;
++      if (usedChars + block.length > budgetChars) {
++        const shortExcerpt = this.readSourceExcerpt(join(projectPath, file), 15);
++        if (!shortExcerpt) continue;
++        const shortBlock = `\n### ${file}\n\`\`\`typescript\n${shortExcerpt}\n\`\`\``;
++        if (usedChars + shortBlock.length > budgetChars) continue;
++        blocks.push(shortBlock);
++        usedChars += shortBlock.length;
++      } else {
++        blocks.push(block);
++        usedChars += block.length;
++      }
++    }
++    return blocks.length > 0 ? '## Source Code Excerpts' + blocks.join('\n') : '';
++  }
++
+   /**
+    * Extract evidence sources — REWRITTEN for TASK-MVP-PROTOTYPE-CONTEXT-QUALITY-001.
+    *
+@@ -842,22 +892,20 @@ export class ExecutionEngine {
+ 
+       // Last resort: any readable source file, still naming the file.
+       if (sources.length === 0) {
+-        for (const f of discovery.files) {
+-          if (!f.relativePath.endsWith('.ts')) continue;
+-          if (seenPaths.has(f.relativePath)) continue;
+-          seenPaths.add(f.relativePath);
++        // Same files the model was shown — see fallbackEvidenceFiles.
++        for (const { file, mod } of this.fallbackEvidenceFiles(discovery)) {
++          if (seenPaths.has(file)) continue;
++          seenPaths.add(file);
+ 
+-          const snippet = this.readSourceExcerpt(join(projectPath, f.relativePath), EVIDENCE_SNIPPET_LINES);
++          const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
+           if (!snippet) continue;
+ 
+           sources.push({
+-            filePath: f.relativePath,
+-            description: `Source file: ${f.relativePath}`,
++            filePath: file,
++            description: `Source: ${file} (${mod.name})`,
+             relevance: 0.3,
+             snippet,
+           });
+-
+-          if (sources.length >= 10) break;
+         }
+       }
+     }
