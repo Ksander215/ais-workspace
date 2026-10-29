@@ -49,13 +49,17 @@ interface OpenAIModule {
 }
 
 /**
- * Conservative chars-per-token estimate for context budgeting. Code and
- * markdown inflate the token count, so this stays below the typical 4.
+ * Conservative chars-per-token estimate for context budgeting.
+ *
+ * Code and markdown inflate the token count: measured on a real request, a
+ * prompt of ~25K characters produced 8211 tokens, i.e. ~3.1 chars per token.
+ * The estimate must stay BELOW that ratio or the trimmed prompt still
+ * overflows the model's window.
  */
-const CHARS_PER_TOKEN_ESTIMATE = 3.5;
+const CHARS_PER_TOKEN_ESTIMATE = 2.5;
 
 /** Tokens kept free for the provider's own framing (role markers, etc.). */
-const SAFETY_MARGIN_TOKENS = 256;
+const SAFETY_MARGIN_TOKENS = 1024;
 
 /**
  * RealOpenAIAdapter — Wave 1 thin wrapper around OpenAI SDK.
