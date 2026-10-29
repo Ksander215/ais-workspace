@@ -869,44 +869,19 @@ export class ExecutionEngine {
     // taken from the same modules. Picking arbitrary first .ts files produced
     // evidence that did not correspond to anything the model was shown.
     if (sources.length === 0) {
-      const fallbackModules = discovery.modules.slice(0, 3);
-      for (const mod of fallbackModules) {
-        for (const file of this.findKeyFiles(mod, discovery, 3)) {
-          if (seenPaths.has(file)) continue;
-          seenPaths.add(file);
+      for (const { file, mod } of this.fallbackEvidenceFiles(discovery)) {
+        if (seenPaths.has(file)) continue;
+        seenPaths.add(file);
 
-          const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
-          if (!snippet) continue;
+        const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
+        if (!snippet) continue;
 
-          sources.push({
-            filePath: file,
-            description: `Source: ${file} (${mod.name})`,
-            relevance: 0.3,
-            snippet,
-          });
-
-          if (sources.length >= 10) break;
-        }
-        if (sources.length >= 10) break;
-      }
-
-      // Last resort: any readable source file, still naming the file.
-      if (sources.length === 0) {
-        // Same files the model was shown — see fallbackEvidenceFiles.
-        for (const { file, mod } of this.fallbackEvidenceFiles(discovery)) {
-          if (seenPaths.has(file)) continue;
-          seenPaths.add(file);
-
-          const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
-          if (!snippet) continue;
-
-          sources.push({
-            filePath: file,
-            description: `Source: ${file} (${mod.name})`,
-            relevance: 0.3,
-            snippet,
-          });
-        }
+        sources.push({
+          filePath: file,
+          description: `Source: ${file} (${mod.name})`,
+          relevance: 0.3,
+          snippet,
+        });
       }
     }
 

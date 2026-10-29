@@ -388,7 +388,13 @@ export class InteractionService {
 
   /**
    * Extract claims from the AIS response and engine sources.
-   * Uses a simple heuristic: each source with high relevance becomes a claim.
+   *
+   * A claim must state something, not name a file. The description of a
+   * source ("Source: a/b.ts") is provenance, not an assertion, so it is used
+   * only as a fallback. Where the answer actually refers to the source, the
+   * sentence that does so becomes the claim statement — that sentence is what
+   * the evidence actually supports.
+   *
    * Claims without evidence are marked Unverified (§11 invariant).
    */
   private extractClaimsFromResponse(
@@ -397,10 +403,13 @@ export class InteractionService {
     engineResponse: ArchitectureAnswerResponse,
   ) {
     const claims: any[] = [];
+    const answer = engineResponse.answer ?? (engineResponse as any).content ?? '';
 
-    // Create a claim for each significant source
     for (const source of engineResponse.sources) {
-      const statement = source.description || `AIS references ${source.filePath}`;
+      const statement =
+        this.findStatementAbout(answer, source.filePath) ||
+        source.description ||
+        `AIS references ${source.filePath}`;
       const claim = this.evidenceLoop.createClaim({
         responseId,
         sessionId,
@@ -412,6 +421,34 @@ export class InteractionService {
     }
 
     return claims;
+  }
+
+  /**
+   * Find the sentence in the answer that refers to the given file.
+   *
+   * Matches on the file path, its basename and its path without extension,
+   * because models quote whichever form is shortest.
+   */
+  private findStatementAbout(answer: string, filePath: string): string | null {
+    if (!answer || !filePath) return null;
+
+    const base = filePath.split('/').pop() ?? filePath;
+    const stem = base.replace(/\.[^.]+$/, '');
+    const candidates = [filePath, base, stem].filter(c => c.length >= 4);
+    if (candidates.length === 0) return null;
+
+    const sentences = answer
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(s => s.replace(/^[\s\-*#>\d.)]+/, '').trim())
+      .filter(s => s.length > 0);
+
+    for (const sentence of sentences) {
+      if (candidates.some(c => sentence.includes(c))) {
+        return sentence.length > 400 ? sentence.slice(0, 400) + '…' : sentence;
+      }
+    }
+
+    return null;
   }
 
   /**
