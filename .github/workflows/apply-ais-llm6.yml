@@ -1,0 +1,28 @@
+name: Apply AIS fallback diversity patch
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decode patch
+        run: |
+          base64 -d aisllm6.b64 > ais-llm6.patch.gz
+          gzip -dc ais-llm6.patch.gz > ais-llm6.patch
+      - name: Apply patch
+        run: git apply ais-llm6.patch
+      - name: Commit
+        run: |
+          git config user.name Ksander215
+          git config user.email ksander215@users.noreply.github.com
+          git add -A
+          git commit -m "fix(ais): spread fallback evidence across modules"
+          git push origin HEAD:main
+      - name: Cleanup
+        run: rm -f aisllm6.b64 ais-llm6.patch.gz ais-llm6.patch
