@@ -49,6 +49,15 @@ interface OpenAIModule {
 }
 
 /**
+ * Conservative chars-per-token estimate for context budgeting. Code and
+ * markdown inflate the token count, so this stays below the typical 4.
+ */
+const CHARS_PER_TOKEN_ESTIMATE = 3.5;
+
+/** Tokens kept free for the provider's own framing (role markers, etc.). */
+const SAFETY_MARGIN_TOKENS = 256;
+
+/**
  * RealOpenAIAdapter — Wave 1 thin wrapper around OpenAI SDK.
  *
  * Responsibilities (and ONLY these):
@@ -196,7 +205,7 @@ export class RealOpenAIAdapter implements ProviderAdapter {
       }
     }
 
-    messages.push({ role: 'user', content: userContent });
+    messages.push({ role: 'user', content: this.fitToContextWindow(userContent, context) });
 
     // Call OpenAI API
     const response = await client.chat.completions.create({
@@ -281,6 +290,41 @@ export class RealOpenAIAdapter implements ProviderAdapter {
       latencyMs: Date.now() - startTime,
       createdAt: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Trim the user message so the whole request fits the model's context
+   * window.
+   *
+   * The provider's context size is a hard limit: a request that exceeds it
+   * is rejected outright ("request (8220 tokens) exceeds the available
+   * context size (8192 tokens)"), which turned two Polygon questions into
+   * HTTP 502. The upstream context budget is an estimate in characters, so
+   * the actual token count could overshoot; here the message is measured and
+   * cut down to what actually fits, keeping the head (the question) and
+   * dropping the tail (source excerpts) first.
+   */
+  private fitToContextWindow(userContent: string, context: PromptContext): string {
+    const contextWindow = this._config?.maxTokens ?? 128000;
+    const maxOutput = context.constraints.maxOutputTokens;
+    // Room for the system message and the conversation history.
+    const overheadChars = (context.systemInstructions?.length ?? 0)
+      + context.conversation.recentMessages.reduce((sum, m) => sum + String(m.content ?? '').length, 0);
+    const overheadTokens = Math.ceil(overheadChars / CHARS_PER_TOKEN_ESTIMATE);
+
+    const budgetTokens = contextWindow - maxOutput - overheadTokens - SAFETY_MARGIN_TOKENS;
+    if (budgetTokens <= 0) {
+      // Even the bare question does not fit: keep as much as the window allows.
+      return userContent.slice(0, Math.max(0, (contextWindow - maxOutput - SAFETY_MARGIN_TOKENS) * CHARS_PER_TOKEN_ESTIMATE));
+    }
+
+    const budgetChars = budgetTokens * CHARS_PER_TOKEN_ESTIMATE;
+    if (userContent.length <= budgetChars) return userContent;
+
+    // Keep the question (the head) and as much of the context as fits.
+    const cut = userContent.slice(0, budgetChars);
+    const lastNewline = cut.lastIndexOf('\n');
+    return (lastNewline > 0 ? cut.slice(0, lastNewline) : cut) + '\n\n[context truncated to fit the model context window]';
   }
 
   /**

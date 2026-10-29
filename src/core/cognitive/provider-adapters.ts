@@ -144,8 +144,8 @@ export abstract class BaseStubAdapter implements ProviderAdapter {
  * OpenAI stub adapter.
  */
 export class OpenAIStubAdapter extends BaseStubAdapter {
-  constructor() {
-    super(ProviderAdapterType.OpenAI, 'openai-stub');
+  constructor(name = 'openai-stub') {
+    super(ProviderAdapterType.OpenAI, name);
   }
 
   async generate(context: PromptContext): Promise<CompletionResult> {

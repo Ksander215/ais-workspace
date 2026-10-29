@@ -82,7 +82,31 @@ interface ScoredNode {
 }
 
 /** Maximum prompt tokens for project context (target ≤8k total including system prompt + question overhead). */
-const CONTEXT_TOKEN_BUDGET = 5000;
+const CONTEXT_TOKEN_BUDGET = readIntEnv('AIS_CONTEXT_TOKEN_BUDGET', 5000);
+
+/** Maximum tokens the model may generate for one answer. */
+const MAX_OUTPUT_TOKENS = readIntEnv('AIS_MAX_OUTPUT_TOKENS', 4096);
+
+/**
+ * The model name reported in evidence and answers. It must be the model that
+ * actually produced the text: the pipeline hardcoded 'gpt-4o' while it was
+ * talking to a local GGUF server, so every record named a model that never
+ * ran.
+ */
+const REPORTED_MODEL = process.env.AIS_REAL_LLM === 'true'
+  ? (process.env.AIS_MODEL ?? 'gpt-4o')
+  : 'stub';
+
+/**
+ * Read a positive integer from the environment, falling back to a default.
+ */
+function readIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
 
 /** Approximate chars per token for code-heavy text (conservative: code + markdown backticks inflate token count). */
 const CHARS_PER_TOKEN = 3.5;
@@ -166,7 +190,7 @@ export class ExecutionEngine {
         );
         this._cognitiveRuntime = new CognitiveRuntime({
           maxTokensPerTurn: 8192,
-          defaultMaxOutputTokens: 4096,
+          defaultMaxOutputTokens: MAX_OUTPUT_TOKENS,
           defaultTemperature: 0.3,
         });
         await this._cognitiveRuntime.initialize();
@@ -265,7 +289,12 @@ export class ExecutionEngine {
 
     const fullQuestion = `${request.question}\n\n---\nProject Context:\n${contextWithPersisted}`;
 
-    const result = await this._cognitiveRuntime.process(fullQuestion);
+    // The assembled context is evidence for the answer, not part of the
+    // user's request. Intent classification runs over the question alone so
+    // that words appearing in the source code cannot change the intent type.
+    const result = await this._cognitiveRuntime.process(fullQuestion, {
+      intentSource: request.question,
+    });
 
     // Step 4: Extract evidence sources — NOW with real code snippets
     const answerSources = this.extractRelevantSources(
@@ -283,7 +312,7 @@ export class ExecutionEngine {
       answer: result.response,
       sources: answerSources,
       architectureModelHash: null, // Wave 1: no hash computation
-      model: 'gpt-4o',
+      model: REPORTED_MODEL,
       provider: process.env.AIS_REAL_LLM === 'true' ? 'openai-real' : 'openai-stub',
       tokens: {
         promptTokens: result.tokens.promptTokens,
@@ -298,7 +327,7 @@ export class ExecutionEngine {
       answer: result.response,
       sources: Object.freeze(answerSources),
       evidence,
-      model: process.env.AIS_REAL_LLM === 'true' ? 'gpt-4o' : 'stub',
+      model: REPORTED_MODEL,
       provider: process.env.AIS_REAL_LLM === 'true' ? 'openai-real' : 'openai-stub',
       latencyMs: Date.now() - pipelineStart,
       discoveryStats: Object.freeze({
@@ -784,22 +813,52 @@ export class ExecutionEngine {
       if (sources.length >= 10) break;
     }
 
-    // Fallback with real snippets (never return empty snippets again)
+    // Fallback with real snippets (never return empty snippets again).
+    // When no graph node matched, the CONTEXT given to the model came from the
+    // top modules (see buildProjectContext), so the evidence sources must be
+    // taken from the same modules. Picking arbitrary first .ts files produced
+    // evidence that did not correspond to anything the model was shown.
     if (sources.length === 0) {
-      for (const f of discovery.files) {
-        if (!f.relativePath.endsWith('.ts')) continue;
-        if (seenPaths.has(f.relativePath)) continue;
-        seenPaths.add(f.relativePath);
+      const fallbackModules = discovery.modules.slice(0, 3);
+      for (const mod of fallbackModules) {
+        for (const file of this.findKeyFiles(mod, discovery, 3)) {
+          if (seenPaths.has(file)) continue;
+          seenPaths.add(file);
 
-        const snippet = this.readSourceExcerpt(join(projectPath, f.relativePath), EVIDENCE_SNIPPET_LINES);
-        sources.push({
-          filePath: f.relativePath,
-          description: `${f.extension} source file`,
-          relevance: 0.3,
-          snippet,
-        });
+          const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
+          if (!snippet) continue;
 
+          sources.push({
+            filePath: file,
+            description: `Source: ${file} (${mod.name})`,
+            relevance: 0.3,
+            snippet,
+          });
+
+          if (sources.length >= 10) break;
+        }
         if (sources.length >= 10) break;
+      }
+
+      // Last resort: any readable source file, still naming the file.
+      if (sources.length === 0) {
+        for (const f of discovery.files) {
+          if (!f.relativePath.endsWith('.ts')) continue;
+          if (seenPaths.has(f.relativePath)) continue;
+          seenPaths.add(f.relativePath);
+
+          const snippet = this.readSourceExcerpt(join(projectPath, f.relativePath), EVIDENCE_SNIPPET_LINES);
+          if (!snippet) continue;
+
+          sources.push({
+            filePath: f.relativePath,
+            description: `Source file: ${f.relativePath}`,
+            relevance: 0.3,
+            snippet,
+          });
+
+          if (sources.length >= 10) break;
+        }
       }
     }
 

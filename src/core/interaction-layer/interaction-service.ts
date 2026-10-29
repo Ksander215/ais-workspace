@@ -233,6 +233,10 @@ export class InteractionService {
       // §19: On failure, mark as FAILED — do NOT create false evidence
       this.updateState(current ?? interaction, InteractionState.Failed);
 
+      // Log the original cause: the safe error below hides it from the
+      // client, and without this the operator sees only "processing failed".
+      console.error('[InteractionService] submitQuestion failed:', err);
+
       // Re-throw as safe ExecutionFailedError (no stack trace to user)
       if (err instanceof InteractionError) throw err;
       throw new ExecutionFailedError();

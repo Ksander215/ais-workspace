@@ -92,7 +92,11 @@ export class ProviderRuntime {
 
   constructor(sandbox?: AdapterSandbox, timeoutMs?: number) {
     this._sandbox = sandbox ?? new InMemoryAdapterSandbox();
-    this._defaultTimeoutMs = timeoutMs ?? 30000;
+    // A local model on CPU can take minutes for a long prompt; the fixed 30s
+    // ceiling aborted every real request. Overridable via env.
+    const envTimeout = Number.parseInt(process.env.AIS_PROVIDER_TIMEOUT_MS ?? '', 10);
+    this._defaultTimeoutMs = timeoutMs
+      ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30000);
   }
 
   /**

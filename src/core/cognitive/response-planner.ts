@@ -198,9 +198,14 @@ export class ResponsePlanner {
 
   /**
    * Check if an available workflow can handle this intent.
+   *
+   * The capability check must be real: an intent that requires a capability
+   * which is not registered cannot be executed, and claiming otherwise
+   * replaced the model's answer with a placeholder string.
    */
-  private hasAvailableWorkflow(_intent: Intent, _context: CognitiveContext): boolean {
-    return true; // Workflow availability is checked at invocation time
+  private hasAvailableWorkflow(intent: Intent, context: CognitiveContext): boolean {
+    if (intent.requiredCapabilities.length === 0) return true;
+    return intent.requiredCapabilities.some(cap => context.capabilities.available.includes(cap));
   }
 
   /**

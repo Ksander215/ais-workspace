@@ -147,13 +147,13 @@ export class IntentRuntime {
    */
   evaluateRules(input: string, context?: Record<string, unknown>): IntentClassification {
     const normalized = input.toLowerCase().trim();
-    const classifications: Array<IntentClassification & { rulePriority: number }> = [];
+    const classifications: Array<IntentClassification & { rulePriority: number; matchCount: number }> = [];
 
     for (const rule of this._config.rules) {
       const matchCount = this.countMatches(normalized, rule.patterns);
       if (matchCount === 0) continue;
 
-      const confidence = Math.min(matchCount / rule.patterns.length * 0.8 + 0.2, 1.0);
+      const confidence = this.scoreConfidence(matchCount);
       const complexity = this.assessComplexity(input, rule.defaultComplexity);
 
       classifications.push({
@@ -163,6 +163,7 @@ export class IntentRuntime {
         requiredCapabilities: rule.requiredCapabilities,
         parameters: this.extractParameters(input, context),
         rulePriority: rule.priority,
+        matchCount,
       });
     }
 
@@ -176,8 +177,29 @@ export class IntentRuntime {
       };
     }
 
-    // Sort by confidence * priority (descending)
+    // An interrogative input is a question, whatever else the text contains.
+    // Without this, a long payload that mentions "workflow", "process" or
+    // "plan" (a project context, a code excerpt) could out-match the actual
+    // question and be classified as an execution request.
+    if (normalized.includes('?')) {
+      const questionClassification = classifications.find(c => c.type === IntentType.Question);
+      if (questionClassification) {
+        return {
+          type: questionClassification.type,
+          confidence: questionClassification.confidence,
+          complexity: questionClassification.complexity,
+          requiredCapabilities: questionClassification.requiredCapabilities,
+          parameters: questionClassification.parameters,
+        };
+      }
+    }
+
+    // Sort by evidence first (how many patterns matched), then by rule
+    // priority as a tie-breaker. Sorting by confidence*priority made the
+    // outcome depend on how many patterns a rule happens to declare, so a
+    // rule with a long pattern list could never win on evidence.
     classifications.sort((a, b) => {
+      if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
       const scoreA = a.confidence * (a.rulePriority + 1);
       const scoreB = b.confidence * (b.rulePriority + 1);
       return scoreB - scoreA;
@@ -215,6 +237,25 @@ export class IntentRuntime {
       }
     }
     return count;
+  }
+
+  /**
+   * Score how strong the evidence for a rule is.
+   *
+   * Confidence describes how much evidence supports the INTENT TYPE, so it
+   * must not depend on how many patterns the rule happens to declare. The
+   * previous formula (matchCount / rule.patterns.length * 0.8 + 0.2) made
+   * confidence a measure of the rule's dictionary size: the Question rule
+   * lists 11 patterns, so two matches scored 0.345 — below the response
+   * planner's clarification threshold, and every real question degraded into
+   * a clarification request instead of reaching the model.
+   *
+   * One matched pattern is already meaningful evidence (0.5); each further
+   * independent pattern strengthens it, capped at 1.0.
+   */
+  private scoreConfidence(matchCount: number): number {
+    if (matchCount <= 0) return 0;
+    return Math.min(0.5 + 0.15 * (matchCount - 1), 1.0);
   }
 
   /**

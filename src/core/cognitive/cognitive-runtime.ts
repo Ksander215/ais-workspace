@@ -57,6 +57,18 @@ import { CognitiveTrace } from './cognitive-trace.js';
 
 // Wave 1 TD-1: Real LLM adapter behind feature flag
 import { RealOpenAIAdapter } from './real-provider-wrapper.js';
+import { OpenAIStubAdapter } from './provider-adapters.js';
+
+/**
+ * Read a positive integer from the environment, falling back to a default.
+ */
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
 
 import type {
   MemoryRuntimeContract,
@@ -193,7 +205,10 @@ export class CognitiveRuntime {
           name: 'openai-real',
           model: process.env.AIS_MODEL ?? 'gpt-4o',
           apiKey: process.env.OPENAI_API_KEY,
-          maxTokens: 128000,
+          // The model's real context window. Must be the server's limit, not a
+          // nominal one: a request larger than this is rejected by the
+          // provider, so a wrong value turns into a hard failure.
+          maxTokens: readPositiveIntEnv('AIS_MODEL_CONTEXT_TOKENS', 128000),
           temperature: 0.7,
           timeoutMs: 60000,
           metadata: Object.freeze({}),
@@ -219,11 +234,32 @@ export class CognitiveRuntime {
         });
       }
     } else {
+      // Without a real provider the runtime still needs a working adapter for
+      // the configured default provider: previously NO adapter was registered
+      // in this mode, so any request that actually reached generation failed
+      // with "Provider 'openai' is unavailable". The failure was invisible
+      // because every question used to be diverted into a clarification
+      // request before generation.
+      // Only for the built-in default provider name: a runtime configured to
+      // use a specific external provider must fail loudly when that provider
+      // is missing, not silently answer from a stub.
+      if (this._config.defaultProvider === DefaultCognitiveRuntimeConfig.defaultProvider) {
+        const stubAdapter = new OpenAIStubAdapter(this._config.defaultProvider);
+        await this._providerRuntime.registerAdapter(stubAdapter, {
+          adapterType: ProviderAdapterType.OpenAI,
+          name: this._config.defaultProvider,
+          model: 'stub',
+          maxTokens: 4096,
+          temperature: 0.7,
+          timeoutMs: 30000,
+          metadata: Object.freeze({}),
+        });
+      }
       this._trace.info({
         sessionId: this._sessionId,
         phase: 'lifecycle',
         action: 'initialize',
-        message: 'Cognitive Runtime initialized (stub adapters)',
+        message: `Cognitive Runtime initialized with STUB adapter '${this._config.defaultProvider}'`,
       });
     }
 
@@ -245,8 +281,16 @@ export class CognitiveRuntime {
 
   /**
    * Process a user input through the full cognitive loop.
+   *
+   * `input` is the full prompt payload (question + assembled project
+   * context). `options.intentSource` is the text the intent classifier is
+   * allowed to look at. They differ because the assembled context is tens of
+   * kilobytes of source code: classifying intent over that payload made the
+   * classifier read code words ("process", "structure", "workflow") as if the
+   * user had asked for them, and turned ordinary questions into the wrong
+   * intent type. When omitted, `input` is used for both.
    */
-  async process(input: string): Promise<{
+  async process(input: string, options?: { intentSource?: string }): Promise<{
     response: string;
     conversation: Conversation;
     intent: Intent;
@@ -254,6 +298,7 @@ export class CognitiveRuntime {
     latencyMs: number;
   }> {
     const startTime = Date.now();
+    const intentSource = options?.intentSource ?? input;
     this._fsm.transition(CognitiveState.Processing);
 
     try {
@@ -264,8 +309,9 @@ export class CognitiveRuntime {
         });
       }
 
-      // 2. Classify intent
-      const intent = this._intentRuntime.classify(input);
+      // 2. Classify intent — over the user's question only, never over the
+      //    assembled context payload.
+      const intent = this._intentRuntime.classify(intentSource);
       this._trace.info({
         sessionId: this._sessionId!,
         conversationId: this._currentConversation.id,
@@ -274,23 +320,30 @@ export class CognitiveRuntime {
         message: `Intent classified: ${intent.type} (confidence: ${intent.confidence})`,
       });
 
-      // 3. Add user message to conversation
+      // 3. Add user message to conversation.
+      //    The conversation stores the USER'S QUESTION, not the assembled
+      //    prompt payload: the payload is already delivered to the model as
+      //    the prompt's user message, and storing it here would send the
+      //    whole project context to the model twice.
       const { conversation } = this._conversationRuntime.addMessage({
         conversationId: this._currentConversation.id,
         role: MessageRole.User,
-        content: input,
+        content: intentSource,
       });
       this._currentConversation = conversation;
       this._metrics.recordMessage();
 
-      // 4. Build cognitive context
+      // 4. Build cognitive context.
+      //    Retrieval runs over the user's question, not over the assembled
+      //    payload: the payload is the material to answer FROM, and using it
+      //    as the retrieval query mixes unrelated code text into the query.
       const history = this._conversationRuntime.getConversationHistory(conversation.id);
       const cognitiveContext = await this._contextBuilder.build({
         sessionId: this._sessionId!,
         conversationId: conversation.id,
         turnId: null,
         intent,
-        userMessage: input,
+        userMessage: intentSource,
         conversationHistory: history,
         conversationSummary: conversation.summary,
         timezone: 'UTC',
@@ -414,7 +467,14 @@ export class CognitiveRuntime {
         message: error instanceof Error ? error.message : 'Unknown error',
       });
 
-      // Return to Ready on error
+      // Return to Ready on error.
+      // The FSM has no direct Processing → Ready edge, so the runtime used to
+      // stay stuck in Processing forever after a failed turn: it could never
+      // process anything again. Route the recovery through Completed, which
+      // the FSM does allow, and keep the FSM contract itself unchanged.
+      if (this._fsm.canTransition(CognitiveState.Completed)) {
+        this._fsm.transition(CognitiveState.Completed);
+      }
       if (this._fsm.canTransition(CognitiveState.Ready)) {
         this._fsm.transition(CognitiveState.Ready);
       }

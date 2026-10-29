@@ -1,0 +1,527 @@
+diff --git a/src/core/cognitive/cognitive-runtime.ts b/src/core/cognitive/cognitive-runtime.ts
+index fd9821e..e38540e 100755
+--- a/src/core/cognitive/cognitive-runtime.ts
++++ b/src/core/cognitive/cognitive-runtime.ts
+@@ -57,6 +57,18 @@ import { CognitiveTrace } from './cognitive-trace.js';
+ 
+ // Wave 1 TD-1: Real LLM adapter behind feature flag
+ import { RealOpenAIAdapter } from './real-provider-wrapper.js';
++import { OpenAIStubAdapter } from './provider-adapters.js';
++
++/**
++ * Read a positive integer from the environment, falling back to a default.
++ */
++function readPositiveIntEnv(name: string, fallback: number): number {
++  const raw = process.env[name];
++  if (raw === undefined || raw.trim() === '') return fallback;
++  const parsed = Number.parseInt(raw, 10);
++  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
++  return parsed;
++}
+ 
+ import type {
+   MemoryRuntimeContract,
+@@ -193,7 +205,10 @@ export class CognitiveRuntime {
+           name: 'openai-real',
+           model: process.env.AIS_MODEL ?? 'gpt-4o',
+           apiKey: process.env.OPENAI_API_KEY,
+-          maxTokens: 128000,
++          // The model's real context window. Must be the server's limit, not a
++          // nominal one: a request larger than this is rejected by the
++          // provider, so a wrong value turns into a hard failure.
++          maxTokens: readPositiveIntEnv('AIS_MODEL_CONTEXT_TOKENS', 128000),
+           temperature: 0.7,
+           timeoutMs: 60000,
+           metadata: Object.freeze({}),
+@@ -219,11 +234,32 @@ export class CognitiveRuntime {
+         });
+       }
+     } else {
++      // Without a real provider the runtime still needs a working adapter for
++      // the configured default provider: previously NO adapter was registered
++      // in this mode, so any request that actually reached generation failed
++      // with "Provider 'openai' is unavailable". The failure was invisible
++      // because every question used to be diverted into a clarification
++      // request before generation.
++      // Only for the built-in default provider name: a runtime configured to
++      // use a specific external provider must fail loudly when that provider
++      // is missing, not silently answer from a stub.
++      if (this._config.defaultProvider === DefaultCognitiveRuntimeConfig.defaultProvider) {
++        const stubAdapter = new OpenAIStubAdapter(this._config.defaultProvider);
++        await this._providerRuntime.registerAdapter(stubAdapter, {
++          adapterType: ProviderAdapterType.OpenAI,
++          name: this._config.defaultProvider,
++          model: 'stub',
++          maxTokens: 4096,
++          temperature: 0.7,
++          timeoutMs: 30000,
++          metadata: Object.freeze({}),
++        });
++      }
+       this._trace.info({
+         sessionId: this._sessionId,
+         phase: 'lifecycle',
+         action: 'initialize',
+-        message: 'Cognitive Runtime initialized (stub adapters)',
++        message: `Cognitive Runtime initialized with STUB adapter '${this._config.defaultProvider}'`,
+       });
+     }
+ 
+@@ -245,8 +281,16 @@ export class CognitiveRuntime {
+ 
+   /**
+    * Process a user input through the full cognitive loop.
++   *
++   * `input` is the full prompt payload (question + assembled project
++   * context). `options.intentSource` is the text the intent classifier is
++   * allowed to look at. They differ because the assembled context is tens of
++   * kilobytes of source code: classifying intent over that payload made the
++   * classifier read code words ("process", "structure", "workflow") as if the
++   * user had asked for them, and turned ordinary questions into the wrong
++   * intent type. When omitted, `input` is used for both.
+    */
+-  async process(input: string): Promise<{
++  async process(input: string, options?: { intentSource?: string }): Promise<{
+     response: string;
+     conversation: Conversation;
+     intent: Intent;
+@@ -254,6 +298,7 @@ export class CognitiveRuntime {
+     latencyMs: number;
+   }> {
+     const startTime = Date.now();
++    const intentSource = options?.intentSource ?? input;
+     this._fsm.transition(CognitiveState.Processing);
+ 
+     try {
+@@ -264,8 +309,9 @@ export class CognitiveRuntime {
+         });
+       }
+ 
+-      // 2. Classify intent
+-      const intent = this._intentRuntime.classify(input);
++      // 2. Classify intent — over the user's question only, never over the
++      //    assembled context payload.
++      const intent = this._intentRuntime.classify(intentSource);
+       this._trace.info({
+         sessionId: this._sessionId!,
+         conversationId: this._currentConversation.id,
+@@ -274,23 +320,30 @@ export class CognitiveRuntime {
+         message: `Intent classified: ${intent.type} (confidence: ${intent.confidence})`,
+       });
+ 
+-      // 3. Add user message to conversation
++      // 3. Add user message to conversation.
++      //    The conversation stores the USER'S QUESTION, not the assembled
++      //    prompt payload: the payload is already delivered to the model as
++      //    the prompt's user message, and storing it here would send the
++      //    whole project context to the model twice.
+       const { conversation } = this._conversationRuntime.addMessage({
+         conversationId: this._currentConversation.id,
+         role: MessageRole.User,
+-        content: input,
++        content: intentSource,
+       });
+       this._currentConversation = conversation;
+       this._metrics.recordMessage();
+ 
+-      // 4. Build cognitive context
++      // 4. Build cognitive context.
++      //    Retrieval runs over the user's question, not over the assembled
++      //    payload: the payload is the material to answer FROM, and using it
++      //    as the retrieval query mixes unrelated code text into the query.
+       const history = this._conversationRuntime.getConversationHistory(conversation.id);
+       const cognitiveContext = await this._contextBuilder.build({
+         sessionId: this._sessionId!,
+         conversationId: conversation.id,
+         turnId: null,
+         intent,
+-        userMessage: input,
++        userMessage: intentSource,
+         conversationHistory: history,
+         conversationSummary: conversation.summary,
+         timezone: 'UTC',
+@@ -414,7 +467,14 @@ export class CognitiveRuntime {
+         message: error instanceof Error ? error.message : 'Unknown error',
+       });
+ 
+-      // Return to Ready on error
++      // Return to Ready on error.
++      // The FSM has no direct Processing → Ready edge, so the runtime used to
++      // stay stuck in Processing forever after a failed turn: it could never
++      // process anything again. Route the recovery through Completed, which
++      // the FSM does allow, and keep the FSM contract itself unchanged.
++      if (this._fsm.canTransition(CognitiveState.Completed)) {
++        this._fsm.transition(CognitiveState.Completed);
++      }
+       if (this._fsm.canTransition(CognitiveState.Ready)) {
+         this._fsm.transition(CognitiveState.Ready);
+       }
+diff --git a/src/core/cognitive/intent-runtime.ts b/src/core/cognitive/intent-runtime.ts
+index d7ebb3d..21c20fb 100755
+--- a/src/core/cognitive/intent-runtime.ts
++++ b/src/core/cognitive/intent-runtime.ts
+@@ -147,13 +147,13 @@ export class IntentRuntime {
+    */
+   evaluateRules(input: string, context?: Record<string, unknown>): IntentClassification {
+     const normalized = input.toLowerCase().trim();
+-    const classifications: Array<IntentClassification & { rulePriority: number }> = [];
++    const classifications: Array<IntentClassification & { rulePriority: number; matchCount: number }> = [];
+ 
+     for (const rule of this._config.rules) {
+       const matchCount = this.countMatches(normalized, rule.patterns);
+       if (matchCount === 0) continue;
+ 
+-      const confidence = Math.min(matchCount / rule.patterns.length * 0.8 + 0.2, 1.0);
++      const confidence = this.scoreConfidence(matchCount);
+       const complexity = this.assessComplexity(input, rule.defaultComplexity);
+ 
+       classifications.push({
+@@ -163,6 +163,7 @@ export class IntentRuntime {
+         requiredCapabilities: rule.requiredCapabilities,
+         parameters: this.extractParameters(input, context),
+         rulePriority: rule.priority,
++        matchCount,
+       });
+     }
+ 
+@@ -176,8 +177,29 @@ export class IntentRuntime {
+       };
+     }
+ 
+-    // Sort by confidence * priority (descending)
++    // An interrogative input is a question, whatever else the text contains.
++    // Without this, a long payload that mentions "workflow", "process" or
++    // "plan" (a project context, a code excerpt) could out-match the actual
++    // question and be classified as an execution request.
++    if (normalized.includes('?')) {
++      const questionClassification = classifications.find(c => c.type === IntentType.Question);
++      if (questionClassification) {
++        return {
++          type: questionClassification.type,
++          confidence: questionClassification.confidence,
++          complexity: questionClassification.complexity,
++          requiredCapabilities: questionClassification.requiredCapabilities,
++          parameters: questionClassification.parameters,
++        };
++      }
++    }
++
++    // Sort by evidence first (how many patterns matched), then by rule
++    // priority as a tie-breaker. Sorting by confidence*priority made the
++    // outcome depend on how many patterns a rule happens to declare, so a
++    // rule with a long pattern list could never win on evidence.
+     classifications.sort((a, b) => {
++      if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+       const scoreA = a.confidence * (a.rulePriority + 1);
+       const scoreB = b.confidence * (b.rulePriority + 1);
+       return scoreB - scoreA;
+@@ -217,6 +239,25 @@ export class IntentRuntime {
+     return count;
+   }
+ 
++  /**
++   * Score how strong the evidence for a rule is.
++   *
++   * Confidence describes how much evidence supports the INTENT TYPE, so it
++   * must not depend on how many patterns the rule happens to declare. The
++   * previous formula (matchCount / rule.patterns.length * 0.8 + 0.2) made
++   * confidence a measure of the rule's dictionary size: the Question rule
++   * lists 11 patterns, so two matches scored 0.345 — below the response
++   * planner's clarification threshold, and every real question degraded into
++   * a clarification request instead of reaching the model.
++   *
++   * One matched pattern is already meaningful evidence (0.5); each further
++   * independent pattern strengthens it, capped at 1.0.
++   */
++  private scoreConfidence(matchCount: number): number {
++    if (matchCount <= 0) return 0;
++    return Math.min(0.5 + 0.15 * (matchCount - 1), 1.0);
++  }
++
+   /**
+    * Assess intent complexity based on input length and structure.
+    */
+diff --git a/src/core/cognitive/provider-adapters.ts b/src/core/cognitive/provider-adapters.ts
+index 0ce1478..2631ffa 100755
+--- a/src/core/cognitive/provider-adapters.ts
++++ b/src/core/cognitive/provider-adapters.ts
+@@ -144,8 +144,8 @@ export abstract class BaseStubAdapter implements ProviderAdapter {
+  * OpenAI stub adapter.
+  */
+ export class OpenAIStubAdapter extends BaseStubAdapter {
+-  constructor() {
+-    super(ProviderAdapterType.OpenAI, 'openai-stub');
++  constructor(name = 'openai-stub') {
++    super(ProviderAdapterType.OpenAI, name);
+   }
+ 
+   async generate(context: PromptContext): Promise<CompletionResult> {
+diff --git a/src/core/cognitive/provider-runtime.ts b/src/core/cognitive/provider-runtime.ts
+index ea64305..fb646a0 100755
+--- a/src/core/cognitive/provider-runtime.ts
++++ b/src/core/cognitive/provider-runtime.ts
+@@ -92,7 +92,11 @@ export class ProviderRuntime {
+ 
+   constructor(sandbox?: AdapterSandbox, timeoutMs?: number) {
+     this._sandbox = sandbox ?? new InMemoryAdapterSandbox();
+-    this._defaultTimeoutMs = timeoutMs ?? 30000;
++    // A local model on CPU can take minutes for a long prompt; the fixed 30s
++    // ceiling aborted every real request. Overridable via env.
++    const envTimeout = Number.parseInt(process.env.AIS_PROVIDER_TIMEOUT_MS ?? '', 10);
++    this._defaultTimeoutMs = timeoutMs
++      ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30000);
+   }
+ 
+   /**
+diff --git a/src/core/cognitive/real-provider-wrapper.ts b/src/core/cognitive/real-provider-wrapper.ts
+index f8a3b99..d1c6182 100755
+--- a/src/core/cognitive/real-provider-wrapper.ts
++++ b/src/core/cognitive/real-provider-wrapper.ts
+@@ -48,6 +48,15 @@ interface OpenAIModule {
+   };
+ }
+ 
++/**
++ * Conservative chars-per-token estimate for context budgeting. Code and
++ * markdown inflate the token count, so this stays below the typical 4.
++ */
++const CHARS_PER_TOKEN_ESTIMATE = 3.5;
++
++/** Tokens kept free for the provider's own framing (role markers, etc.). */
++const SAFETY_MARGIN_TOKENS = 256;
++
+ /**
+  * RealOpenAIAdapter — Wave 1 thin wrapper around OpenAI SDK.
+  *
+@@ -196,7 +205,7 @@ export class RealOpenAIAdapter implements ProviderAdapter {
+       }
+     }
+ 
+-    messages.push({ role: 'user', content: userContent });
++    messages.push({ role: 'user', content: this.fitToContextWindow(userContent, context) });
+ 
+     // Call OpenAI API
+     const response = await client.chat.completions.create({
+@@ -283,6 +292,41 @@ export class RealOpenAIAdapter implements ProviderAdapter {
+     });
+   }
+ 
++  /**
++   * Trim the user message so the whole request fits the model's context
++   * window.
++   *
++   * The provider's context size is a hard limit: a request that exceeds it
++   * is rejected outright ("request (8220 tokens) exceeds the available
++   * context size (8192 tokens)"), which turned two Polygon questions into
++   * HTTP 502. The upstream context budget is an estimate in characters, so
++   * the actual token count could overshoot; here the message is measured and
++   * cut down to what actually fits, keeping the head (the question) and
++   * dropping the tail (source excerpts) first.
++   */
++  private fitToContextWindow(userContent: string, context: PromptContext): string {
++    const contextWindow = this._config?.maxTokens ?? 128000;
++    const maxOutput = context.constraints.maxOutputTokens;
++    // Room for the system message and the conversation history.
++    const overheadChars = (context.systemInstructions?.length ?? 0)
++      + context.conversation.recentMessages.reduce((sum, m) => sum + String(m.content ?? '').length, 0);
++    const overheadTokens = Math.ceil(overheadChars / CHARS_PER_TOKEN_ESTIMATE);
++
++    const budgetTokens = contextWindow - maxOutput - overheadTokens - SAFETY_MARGIN_TOKENS;
++    if (budgetTokens <= 0) {
++      // Even the bare question does not fit: keep as much as the window allows.
++      return userContent.slice(0, Math.max(0, (contextWindow - maxOutput - SAFETY_MARGIN_TOKENS) * CHARS_PER_TOKEN_ESTIMATE));
++    }
++
++    const budgetChars = budgetTokens * CHARS_PER_TOKEN_ESTIMATE;
++    if (userContent.length <= budgetChars) return userContent;
++
++    // Keep the question (the head) and as much of the context as fits.
++    const cut = userContent.slice(0, budgetChars);
++    const lastNewline = cut.lastIndexOf('\n');
++    return (lastNewline > 0 ? cut.slice(0, lastNewline) : cut) + '\n\n[context truncated to fit the model context window]';
++  }
++
+   /**
+    * Estimate token count. Uses ~4 chars/token heuristic.
+    * Real tokenization requires tiktoken which is an OpenAI-specific dependency.
+diff --git a/src/core/cognitive/response-planner.ts b/src/core/cognitive/response-planner.ts
+index c496560..558998d 100755
+--- a/src/core/cognitive/response-planner.ts
++++ b/src/core/cognitive/response-planner.ts
+@@ -198,9 +198,14 @@ export class ResponsePlanner {
+ 
+   /**
+    * Check if an available workflow can handle this intent.
++   *
++   * The capability check must be real: an intent that requires a capability
++   * which is not registered cannot be executed, and claiming otherwise
++   * replaced the model's answer with a placeholder string.
+    */
+-  private hasAvailableWorkflow(_intent: Intent, _context: CognitiveContext): boolean {
+-    return true; // Workflow availability is checked at invocation time
++  private hasAvailableWorkflow(intent: Intent, context: CognitiveContext): boolean {
++    if (intent.requiredCapabilities.length === 0) return true;
++    return intent.requiredCapabilities.some(cap => context.capabilities.available.includes(cap));
+   }
+ 
+   /**
+diff --git a/src/core/engine/execution-engine.ts b/src/core/engine/execution-engine.ts
+index d484d71..fcda4d5 100644
+--- a/src/core/engine/execution-engine.ts
++++ b/src/core/engine/execution-engine.ts
+@@ -82,7 +82,31 @@ interface ScoredNode {
+ }
+ 
+ /** Maximum prompt tokens for project context (target ≤8k total including system prompt + question overhead). */
+-const CONTEXT_TOKEN_BUDGET = 5000;
++const CONTEXT_TOKEN_BUDGET = readIntEnv('AIS_CONTEXT_TOKEN_BUDGET', 5000);
++
++/** Maximum tokens the model may generate for one answer. */
++const MAX_OUTPUT_TOKENS = readIntEnv('AIS_MAX_OUTPUT_TOKENS', 4096);
++
++/**
++ * The model name reported in evidence and answers. It must be the model that
++ * actually produced the text: the pipeline hardcoded 'gpt-4o' while it was
++ * talking to a local GGUF server, so every record named a model that never
++ * ran.
++ */
++const REPORTED_MODEL = process.env.AIS_REAL_LLM === 'true'
++  ? (process.env.AIS_MODEL ?? 'gpt-4o')
++  : 'stub';
++
++/**
++ * Read a positive integer from the environment, falling back to a default.
++ */
++function readIntEnv(name: string, fallback: number): number {
++  const raw = process.env[name];
++  if (raw === undefined || raw.trim() === '') return fallback;
++  const parsed = Number.parseInt(raw, 10);
++  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
++  return parsed;
++}
+ 
+ /** Approximate chars per token for code-heavy text (conservative: code + markdown backticks inflate token count). */
+ const CHARS_PER_TOKEN = 3.5;
+@@ -166,7 +190,7 @@ export class ExecutionEngine {
+         );
+         this._cognitiveRuntime = new CognitiveRuntime({
+           maxTokensPerTurn: 8192,
+-          defaultMaxOutputTokens: 4096,
++          defaultMaxOutputTokens: MAX_OUTPUT_TOKENS,
+           defaultTemperature: 0.3,
+         });
+         await this._cognitiveRuntime.initialize();
+@@ -265,7 +289,12 @@ export class ExecutionEngine {
+ 
+     const fullQuestion = `${request.question}\n\n---\nProject Context:\n${contextWithPersisted}`;
+ 
+-    const result = await this._cognitiveRuntime.process(fullQuestion);
++    // The assembled context is evidence for the answer, not part of the
++    // user's request. Intent classification runs over the question alone so
++    // that words appearing in the source code cannot change the intent type.
++    const result = await this._cognitiveRuntime.process(fullQuestion, {
++      intentSource: request.question,
++    });
+ 
+     // Step 4: Extract evidence sources — NOW with real code snippets
+     const answerSources = this.extractRelevantSources(
+@@ -283,7 +312,7 @@ export class ExecutionEngine {
+       answer: result.response,
+       sources: answerSources,
+       architectureModelHash: null, // Wave 1: no hash computation
+-      model: 'gpt-4o',
++      model: REPORTED_MODEL,
+       provider: process.env.AIS_REAL_LLM === 'true' ? 'openai-real' : 'openai-stub',
+       tokens: {
+         promptTokens: result.tokens.promptTokens,
+@@ -298,7 +327,7 @@ export class ExecutionEngine {
+       answer: result.response,
+       sources: Object.freeze(answerSources),
+       evidence,
+-      model: process.env.AIS_REAL_LLM === 'true' ? 'gpt-4o' : 'stub',
++      model: REPORTED_MODEL,
+       provider: process.env.AIS_REAL_LLM === 'true' ? 'openai-real' : 'openai-stub',
+       latencyMs: Date.now() - pipelineStart,
+       discoveryStats: Object.freeze({
+@@ -784,23 +813,53 @@ export class ExecutionEngine {
+       if (sources.length >= 10) break;
+     }
+ 
+-    // Fallback with real snippets (never return empty snippets again)
++    // Fallback with real snippets (never return empty snippets again).
++    // When no graph node matched, the CONTEXT given to the model came from the
++    // top modules (see buildProjectContext), so the evidence sources must be
++    // taken from the same modules. Picking arbitrary first .ts files produced
++    // evidence that did not correspond to anything the model was shown.
+     if (sources.length === 0) {
+-      for (const f of discovery.files) {
+-        if (!f.relativePath.endsWith('.ts')) continue;
+-        if (seenPaths.has(f.relativePath)) continue;
+-        seenPaths.add(f.relativePath);
+-
+-        const snippet = this.readSourceExcerpt(join(projectPath, f.relativePath), EVIDENCE_SNIPPET_LINES);
+-        sources.push({
+-          filePath: f.relativePath,
+-          description: `${f.extension} source file`,
+-          relevance: 0.3,
+-          snippet,
+-        });
++      const fallbackModules = discovery.modules.slice(0, 3);
++      for (const mod of fallbackModules) {
++        for (const file of this.findKeyFiles(mod, discovery, 3)) {
++          if (seenPaths.has(file)) continue;
++          seenPaths.add(file);
++
++          const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
++          if (!snippet) continue;
++
++          sources.push({
++            filePath: file,
++            description: `Source: ${file} (${mod.name})`,
++            relevance: 0.3,
++            snippet,
++          });
+ 
++          if (sources.length >= 10) break;
++        }
+         if (sources.length >= 10) break;
+       }
++
++      // Last resort: any readable source file, still naming the file.
++      if (sources.length === 0) {
++        for (const f of discovery.files) {
++          if (!f.relativePath.endsWith('.ts')) continue;
++          if (seenPaths.has(f.relativePath)) continue;
++          seenPaths.add(f.relativePath);
++
++          const snippet = this.readSourceExcerpt(join(projectPath, f.relativePath), EVIDENCE_SNIPPET_LINES);
++          if (!snippet) continue;
++
++          sources.push({
++            filePath: f.relativePath,
++            description: `Source file: ${f.relativePath}`,
++            relevance: 0.3,
++            snippet,
++          });
++
++          if (sources.length >= 10) break;
++        }
++      }
+     }
+ 
+     return sources;
+diff --git a/src/core/interaction-layer/interaction-service.ts b/src/core/interaction-layer/interaction-service.ts
+index 4966216..99805e3 100644
+--- a/src/core/interaction-layer/interaction-service.ts
++++ b/src/core/interaction-layer/interaction-service.ts
+@@ -233,6 +233,10 @@ export class InteractionService {
+       // §19: On failure, mark as FAILED — do NOT create false evidence
+       this.updateState(current ?? interaction, InteractionState.Failed);
+ 
++      // Log the original cause: the safe error below hides it from the
++      // client, and without this the operator sees only "processing failed".
++      console.error('[InteractionService] submitQuestion failed:', err);
++
+       // Re-throw as safe ExecutionFailedError (no stack trace to user)
+       if (err instanceof InteractionError) throw err;
+       throw new ExecutionFailedError();
