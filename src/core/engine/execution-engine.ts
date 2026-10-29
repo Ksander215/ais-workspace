@@ -135,6 +135,98 @@ function isTestFile(relativePath: string): boolean {
   return /\.(test|spec|e2e)\.[cm]?[jt]sx?$/.test(p);
 }
 
+/**
+ * Whether a file only declares types.
+ *
+ * A file such as `runtime-types.ts` shows the shape of a module but none of
+ * its behaviour, so it is evidence of last resort.
+ */
+function isTypeOnlyFile(relativePath: string): boolean {
+  return /(^|\/)[a-z0-9-]+-(types|interfaces|schema)\.tsx?$/i.test(relativePath);
+}
+
+/**
+ * The architectural weight of a module: how central it looks to the system.
+ *
+ * Ranking breadth by file count alone surfaces the largest UI packages, which
+ * say little about how the system works. Core, workflow and runtime packages
+ * describe the architecture, so they are preferred.
+ */
+function architecturalWeight(modulePath: string): number {
+  const p = modulePath.toLowerCase();
+  let weight = 0;
+  if (p.includes('core')) weight += 3;
+  if (p.includes('workflow')) weight += 3;
+  if (p.includes('agent')) weight += 2;
+  if (p.includes('runtime')) weight += 2;
+  if (p.includes('server') || p.includes('gateway')) weight += 1;
+  if (p.includes('ui-') || p.includes('/ui/')) weight -= 2;
+  return weight;
+}
+
+/**
+ * The package a module belongs to, used to spread evidence across the
+ * repository.
+ *
+ * A monorepo groups code under `packages/<name>` and `apps/<name>`, so the
+ * first two path segments identify the package. Spreading by the first
+ * segment alone would let one large area (`apps`) take every slot.
+ */
+function packageKeyOf(modulePath: string): string {
+  const segments = modulePath.split('/').filter(Boolean);
+  if (segments.length === 0) return '.';
+  if (segments[0] === 'packages') {
+    // pnpm workspaces nest as packages/<group>/<name>
+    return segments.length >= 3
+      ? `${segments[0]}/${segments[1]}/${segments[2]}`
+      : segments.slice(0, 2).join('/');
+  }
+  if (segments[0] === 'apps') {
+    return segments.length >= 2 ? `${segments[0]}/${segments[1]}` : segments[0];
+  }
+  return segments[0];
+}
+
+/**
+ * The first exported symbol in a snippet, e.g. "class BackendController".
+ *
+ * It gives the claim something to state about the file beyond its path.
+ */
+function firstExportedSymbol(snippet: string): string | null {
+  const m = snippet.match(/export\s+(?:default\s+)?(?:abstract\s+)?(?:class|function|const|let|var|interface|type|enum)\s+([A-Za-z0-9_$]+)/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Whether a path is auxiliary material rather than the project's own code:
+ * vendored dependencies, benchmarks, fixtures and generated output.
+ *
+ * Such files can be legitimate code, but as evidence for an architecture
+ * question they are noise — they describe somebody else's runtime or a
+ * measurement harness, not this codebase.
+ */
+function isAuxiliaryFile(relativePath: string): boolean {
+  const p = relativePath.toLowerCase();
+  const segments = p.split('/');
+  const hasDir = (name: string) => segments.includes(name);
+  if (hasDir('vendor') || hasDir('node_modules')) return true;
+  if (hasDir('benchmarks') || hasDir('benchmark')) return true;
+  if (hasDir('fixtures') || hasDir('__snapshots__')) return true;
+  if (hasDir('examples') || hasDir('example')) return true;
+  if (hasDir('website') || hasDir('docs') || hasDir('doc')) return true;
+  if (hasDir('snapshots') || hasDir('snapshot')) return true;
+  if (hasDir('tests') || hasDir('test')) return true;
+  // Low-signal files: translations and generated assets say little about
+  // architecture and crowd out the files that do.
+  if (/locale|i18n|translation/i.test(relativePath)) return true;
+  if (/artwork|icon[-_]?set/i.test(relativePath)) return true;
+  if (/\.(json|ya?ml|md|snap)$/i.test(relativePath)) return true;
+  // Utility scripts describe how the project is run, not how it is built.
+  if (hasDir('scripts')) return true;
+  if (hasDir('.agents') || hasDir('generated')) return true;
+  return false;
+}
+
 /** Common English words to filter from question keywords. */
 const STOP_WORDS = new Set([
   'what', 'are', 'the', 'is', 'a', 'an', 'and', 'or', 'but', 'in', 'on',
@@ -561,6 +653,7 @@ export class ExecutionEngine {
     discovery: DiscoveryResult,
     projectPath: string,
     budgetChars: number,
+    shownFiles: Set<string> = new Set(),
   ): string {
     const blocks: string[] = [];
     let usedChars = 0;
@@ -576,6 +669,7 @@ export class ExecutionEngine {
 
       for (const ep of entries) {
         if (usedChars >= budgetChars) break;
+        shownFiles.add(ep);
 
         const absolutePath = join(projectPath, ep);
         const excerpt = this.readSourceExcerpt(absolutePath, EXCERPT_MAX_LINES);
@@ -621,7 +715,7 @@ export class ExecutionEngine {
     // about the module, and it was crowding out the implementation files.
     for (const ep of mod.entryPoints) {
       if (result.length >= maxFiles) break;
-      if (ep.endsWith('.ts') && !ep.endsWith('index.ts') && !seen.has(ep) && !isTestFile(ep)) {
+      if (ep.endsWith('.ts') && !ep.endsWith('index.ts') && !seen.has(ep) && !isTestFile(ep) && !isAuxiliaryFile(ep)) {
         seen.add(ep); result.push(ep);
       }
     }
@@ -633,7 +727,8 @@ export class ExecutionEngine {
         f.relativePath.endsWith('.ts') &&
         !f.relativePath.endsWith('index.ts') &&
         !f.relativePath.endsWith('.d.ts') &&
-        !isTestFile(f.relativePath) &&
+        !isTestFile(f.relativePath) && !isAuxiliaryFile(f.relativePath) &&
+        !isTypeOnlyFile(f.relativePath) &&
         !seen.has(f.relativePath),
       );
 
@@ -662,7 +757,7 @@ export class ExecutionEngine {
     // Priority 3: index.ts (lowest priority — barrel exports are less useful)
     for (const ep of mod.entryPoints) {
       if (result.length >= maxFiles) break;
-      if (ep.endsWith('index.ts') && !seen.has(ep)) {
+      if (ep.endsWith('index.ts') && !seen.has(ep) && !isAuxiliaryFile(ep)) {
         seen.add(ep); result.push(ep);
       }
     }
@@ -714,14 +809,30 @@ export class ExecutionEngine {
     }
 
     // 3. Source code excerpts from relevant module files
+    const shownFiles = new Set<string>();
     if (relevantNodes.length > 0) {
       const remainingBudget = maxChars - usedChars - 500; // reserve for tech stack
       const sourceSection = this.buildSourceExcerptsSection(
-        relevantNodes, discovery, projectPath, remainingBudget,
+        relevantNodes, discovery, projectPath, remainingBudget, shownFiles,
       );
       if (sourceSection) {
         parts.push(sourceSection);
         usedChars += sourceSection.length;
+      }
+    }
+
+    // 3b. Breadth: a broad question ("overall architecture") often matches no
+    // node in particular. Add one key file from the largest modules so the
+    // model and the evidence see more than one part of the codebase. The same
+    // file list is used for the evidence sources, so the answer stays grounded
+    // in what it was shown.
+    const breadthFiles = this.breadthFiles(discovery, shownFiles);
+    if (breadthFiles.length > 0) {
+      const remainingBudget = maxChars - usedChars - 500;
+      const breadthSection = this.buildExcerptsForFiles(breadthFiles, projectPath, remainingBudget);
+      if (breadthSection) {
+        parts.push(breadthSection);
+        usedChars += breadthSection.length;
       }
     }
 
@@ -753,6 +864,73 @@ export class ExecutionEngine {
   }
 
   /**
+   * One key file from the largest modules, skipping files already shown.
+   *
+   * A broad question ("overall architecture") matches no specific node in
+   * particular — generic words like "src" match every node equally — so the
+   * graph retrieval alone would answer from one arbitrary module. Taking the
+   * biggest modules gives the model (and the evidence) a view of the whole
+   * codebase.
+   */
+  private breadthFiles(discovery: DiscoveryResult, excludeFiles: ReadonlySet<string>): string[] {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const modules = [...discovery.modules]
+      .filter(m => !isAuxiliaryFile(m.path))
+      .sort((a, b) => architecturalWeight(b.path) - architecturalWeight(a.path) || b.fileCount - a.fileCount);
+    const perRoot = new Map<string, number>();
+    for (const mod of modules) {
+      const file = this.findKeyFiles(mod, discovery, 1)[0];
+      if (!file || seen.has(file) || excludeFiles.has(file)) continue;
+
+      // Spread across the packages of the repository: without this, the
+      // largest package crowds out every other part of the codebase and the
+      // answer covers one area only.
+      const pkg = packageKeyOf(mod.path);
+      const used = perRoot.get(pkg) ?? 0;
+      if (used >= 1) continue;
+      perRoot.set(pkg, used + 1);
+
+      seen.add(file);
+      out.push(file);
+      if (out.length >= FALLBACK_MODULE_COUNT) break;
+    }
+    return out;
+  }
+
+  /**
+   * A description of a source that states something about it.
+   *
+   * A bare path is provenance, not an assertion. Naming the module and the
+   * symbol the file exports turns it into a statement the evidence supports.
+   */
+  private describeSource(mod: ModuleBoundary, file: string, snippet: string): string {
+    const symbol = firstExportedSymbol(snippet);
+    const base = `Module ${mod.name} (${mod.fileCount} files) contains ${file}`;
+    return symbol ? `${base} and exports ${symbol}` : base;
+  }
+
+  /**
+   * The module a file belongs to, matched by the longest path prefix.
+   */
+  private moduleBoundaryOf(discovery: DiscoveryResult, file: string): ModuleBoundary {
+    const dir = file.split('/').slice(0, -1).join('/');
+    let best: ModuleBoundary | null = null;
+    for (const mod of discovery.modules) {
+      if (dir === mod.path || dir.startsWith(mod.path + '/')) {
+        if (!best || mod.path.length > best.path.length) best = mod;
+      }
+    }
+    return best ?? {
+      path: dir,
+      name: dir.replace(/\//g, '.'),
+      fileCount: 1,
+      entryPoints: [],
+      exports: [],
+    };
+  }
+
+  /**
    * The files used when no graph node matched the question.
    *
    * The CONTEXT shown to the model and the EVIDENCE sources attached to the
@@ -763,17 +941,27 @@ export class ExecutionEngine {
   private fallbackEvidenceFiles(discovery: DiscoveryResult): Array<{ file: string; mod: ModuleBoundary }> {
     const out: Array<{ file: string; mod: ModuleBoundary }> = [];
     const seen = new Set<string>();
-    // One file per module first, so a broad question is answered from several
-    // parts of the codebase instead of the largest module alone.
-    for (const mod of discovery.modules.slice(0, FALLBACK_MODULE_COUNT * 2)) {
+    // Largest modules first: the discovery module list is in directory order,
+    // which would answer a broad question from whatever happened to be first.
+    const modules = [...discovery.modules]
+      .filter(m => !isAuxiliaryFile(m.path))
+      .sort((a, b) => architecturalWeight(b.path) - architecturalWeight(a.path) || b.fileCount - a.fileCount);
+    // One file per module first, so the answer spans several parts of the
+    // codebase instead of one package.
+    const perRoot = new Map<string, number>();
+    for (const mod of modules) {
       const file = this.findKeyFiles(mod, discovery, 1)[0];
       if (!file || seen.has(file)) continue;
+      const pkg = packageKeyOf(mod.path);
+      const used = perRoot.get(pkg) ?? 0;
+      if (used >= 1) continue;
+      perRoot.set(pkg, used + 1);
       seen.add(file);
       out.push({ file, mod });
       if (out.length >= FALLBACK_FILE_COUNT) return out;
     }
-    // Then fill up with the remaining key files of the first modules.
-    for (const mod of discovery.modules.slice(0, FALLBACK_MODULE_COUNT)) {
+    // Then fill up with the remaining key files of the largest modules.
+    for (const mod of modules.slice(0, FALLBACK_MODULE_COUNT)) {
       for (const file of this.findKeyFiles(mod, discovery, 2)) {
         if (seen.has(file)) continue;
         seen.add(file);
@@ -833,12 +1021,22 @@ export class ExecutionEngine {
     const relevantNodes = this.findRelevantNodes(question, graph);
     const seenPaths = new Set<string>();
 
+    // A broad question matches nodes of one area only ("overall architecture"
+    // matches nothing in particular, and the strongest single match wins).
+    // Cap the sources per package so one area cannot fill the whole list.
+    const perPackage = new Map<string, number>();
+    const MAX_PER_PACKAGE = 1;
+
     for (const { node, score, reason } of relevantNodes) {
       const mod = this.findModuleForNode(node.name, discovery);
       if (!mod) continue;
 
+      const pkg = packageKeyOf(mod.path);
+      const pkgUsed = perPackage.get(pkg) ?? 0;
+      if (pkgUsed >= MAX_PER_PACKAGE) continue;
+
       // v3: Find key files first — skip module entirely if no readable files found
-      const keyFiles = this.findKeyFiles(mod, discovery, 3);
+      const keyFiles = this.findKeyFiles(mod, discovery, 2);
       const mainFile = keyFiles[0];
 
       // v3: Skip modules with no actual source files (fixes empty-snippet directory-path bug)
@@ -865,6 +1063,7 @@ export class ExecutionEngine {
           relevance: parseFloat(relevance.toFixed(2)),
           snippet: mainSnippet,
         });
+        perPackage.set(pkg, (perPackage.get(pkg) ?? 0) + 1);
       }
 
       // Per-file evidence sources with individual snippets
@@ -876,14 +1075,38 @@ export class ExecutionEngine {
         if (!snippet) continue; // v3: Skip unreadable files
         sources.push({
           filePath: file,
-          description: `Source: ${file} (${mod.name})`,
+          description: this.describeSource(mod, file, snippet),
           relevance: parseFloat(Math.min(1.0, (score / 12) + 0.1).toFixed(2)),
           snippet,
         });
+        perPackage.set(pkg, (perPackage.get(pkg) ?? 0) + 1);
       }
 
       // v3: Reduced from 15 to 10 — fewer, higher-quality sources
       if (sources.length >= 10) break;
+    }
+
+    // Breadth: the CONTEXT shown to the model also contains one key file from
+    // the largest modules (see buildProjectContext), so the evidence must cite
+    // the same files — otherwise the claims describe something the model was
+    // not shown.
+    if (sources.length > 0 && sources.length < 10) {
+      const shown = new Set(sources.map(s => s.filePath));
+      for (const file of this.breadthFiles(discovery, shown)) {
+        if (seenPaths.has(file)) continue;
+        seenPaths.add(file);
+
+        const snippet = this.readSourceExcerpt(join(projectPath, file), EVIDENCE_SNIPPET_LINES);
+        if (!snippet) continue;
+
+        sources.push({
+          filePath: file,
+          description: this.describeSource(this.moduleBoundaryOf(discovery, file), file, snippet),
+          relevance: 0.3,
+          snippet,
+        });
+        if (sources.length >= 10) break;
+      }
     }
 
     // Fallback with real snippets (never return empty snippets again).
@@ -901,7 +1124,7 @@ export class ExecutionEngine {
 
         sources.push({
           filePath: file,
-          description: `Source: ${file} (${mod.name})`,
+          description: this.describeSource(mod, file, snippet),
           relevance: 0.3,
           snippet,
         });

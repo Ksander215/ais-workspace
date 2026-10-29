@@ -100,17 +100,11 @@ export const DefaultDiscoveryConfig: DiscoveryConfig = {
     '.cache',
     'frames',
     '__tests__',
-    // TASK-MVP-FREE-QUALITY-GATE-001: Exclude non-core project directories
-    // that pollute the ArchitectureGraph and cause false keyword matches
-    // in findRelevantNodes() (e.g., "evidence" matching landing.app.evidence).
-    'landing',
-    'backend',
-    'docs',
-    'scripts',
-    'plugins',
-    'packages',
-    'skills',
+    // Only vendor and build output is excluded. Excluding source roots such
+    // as `packages` hid most of a monorepo from the architecture model: the
+    // evidence then covered one application folder and nothing else.
+    'vendor',
   ],
-  maxDepth: 10,
-  maxFiles: 10000,
+  maxDepth: 12,
+  maxFiles: 50000,
 };

@@ -407,7 +407,7 @@ export class InteractionService {
 
     for (const source of engineResponse.sources) {
       const statement =
-        this.findStatementAbout(answer, source.filePath) ||
+        this.findStatementAbout(answer, source.filePath, this.moduleNameOf(source.description)) ||
         source.description ||
         `AIS references ${source.filePath}`;
       const claim = this.evidenceLoop.createClaim({
@@ -424,31 +424,68 @@ export class InteractionService {
   }
 
   /**
+   * The module name carried in a source description, e.g. "Source: a/b.ts (a.b)".
+   *
+   * The answer usually names the module rather than the file, so the module
+   * name is a second candidate for finding the sentence that supports the
+   * claim.
+   */
+  private moduleNameOf(description: string | undefined): string | null {
+    if (!description) return null;
+    const m = description.match(/\(([a-z0-9._-]+)\)\s*$/i);
+    return m ? m[1] : null;
+  }
+
+  /**
    * Find the sentence in the answer that refers to the given file.
    *
    * Matches on the file path, its basename and its path without extension,
    * because models quote whichever form is shortest.
    */
-  private findStatementAbout(answer: string, filePath: string): string | null {
+  private findStatementAbout(answer: string, filePath: string, moduleName?: string | null): string | null {
     if (!answer || !filePath) return null;
 
     const base = filePath.split('/').pop() ?? filePath;
     const stem = base.replace(/\.[^.]+$/, '');
-    const candidates = [filePath, base, stem].filter(c => c.length >= 4);
-    if (candidates.length === 0) return null;
+    // A bare "index" matches every barrel file in the answer, so it is not a
+    // usable reference on its own.
+    const candidates = [filePath, base, stem === 'index' ? null : stem].filter(
+      (c): c is string => c !== null,
+    );
+    if (moduleName) {
+      candidates.push(moduleName);
+      const lastSegment = moduleName.split('.').pop();
+      if (lastSegment && lastSegment.length >= 4) candidates.push(lastSegment);
+    }
+    const usable = candidates.filter(c => c.length >= 4);
+    if (usable.length === 0) return null;
 
     const sentences = answer
       .split(/(?<=[.!?])\s+|\n+/)
       .map(s => s.replace(/^[\s\-*#>\d.)]+/, '').trim())
       .filter(s => s.length > 0);
 
+    // A heading or a bullet that contains nothing but the path names the file
+    // without stating anything, so those sentences are skipped in favour of
+    // one that actually says something about it.
+    let fallback: string | null = null;
     for (const sentence of sentences) {
-      if (candidates.some(c => sentence.includes(c))) {
-        return sentence.length > 400 ? sentence.slice(0, 400) + '…' : sentence;
+      const matched = usable.some(c => sentence.includes(c));
+      if (!matched) continue;
+
+      const withoutPaths = usable.reduce(
+        (rest, c) => rest.split(c).join(' '),
+        sentence,
+      ).replace(/[`*_\s]/g, '');
+      if (withoutPaths.length < 25) {
+        if (!fallback) fallback = sentence;
+        continue;
       }
+
+      return sentence.length > 400 ? sentence.slice(0, 400) + '…' : sentence;
     }
 
-    return null;
+    return fallback;
   }
 
   /**
